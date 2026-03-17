@@ -1,0 +1,356 @@
+    Classroom Utilisation & Optimisation System
+ 
+21CSC205P Database Management Systems
+A MINI PROJECT REPORT
+Submitted by
+S Mithesh [RA2411042010075]
+ Shahzaad Ahmed Sabeeh [RA2411042010076]
+
+Under the Guidance of
+DR.K.ARTHI
+ Associate Professor
+ Department of DSBS
+ 
+In partial fulfillment of the requirements for the degree of
+BACHELOR OF TECHNOLOGY
+in
+COMPUTER SCIENCE ENGINEERING
+with specialization in BUSINESS SYSTEMS
+
+
+
+DEPARTMENT OF DATA SCIENCE AND BUSINESS SYSTEM
+SCHOOL OF COMPUTING     	
+COLLEGE OF ENGINEERING AND TECHNOLOGY
+SRM INSTITUTE OF SCIENCE AND TECHNOLOGY
+KATTANKULATHUR- 603 203
+                                                 
+MAY 2026
+
+SRM INSTITUTE OF SCIENCE AND TECHNOLOGY    KATTANKULATHUR - 603 203
+BONAFIDE CERTIFICATE
+ 
+ 
+Certified that Project report titled "Classroom & Lab Utilization Optimization System" is the bonafide work of "S Mithesh [RA2411042010075]  and Shahzaad Ahmed Sabeeh [RA2411042010076]" who carried out the 21CSC205P Database Management Systems mini project work under my supervision. 
+
+
+
+
+
+
+
+ 
+ 
+COURSE FACULTY
+ DR.K.ARTHI
+Associate Professor,
+Department of DSBS,
+SRMIST - KTR
+
+                                                                        HEAD OF THE DEPARMENTPROFESSOR AND HEAD
+Department                                                 ABSTRACT
+
+The Classroom & Lab Utilization Optimization System is designed to manage and analyze classroom and laboratory usage in academic institutions. Manual scheduling methods often lead to inefficient room utilization, double bookings, and scheduling conflicts. This project proposes a centralized database-driven solution to store room details, time slots, departments, courses, batches, and schedules.
+The system uses ER modeling to design the database and relational schemas are derived from it. Tables are created using SQL DDL commands and populated using DML statements. Complex SQL queries are written using joins, subqueries, aggregate functions, constraints, views, triggers, and cursors. Normalization is applied up to 5NF to remove redundancy and anomalies. Transaction control, concurrency control, and recovery mechanisms are implemented using TCL and locking commands.
+This system helps institutions optimize infrastructure usage and avoid scheduling conflicts.
+
+
+
+
+
+
+
+
+
+
+
+
+
+               
+
+                                         TABLE OF CONTENTS
+
+Chapter No.TitlePage No.1Problem Understanding5 - 142Design of Relational Schemas, Creation of Database and Tables15 - 34
+
+
+
+
+
+CHAPTER 1
+
+PROBLEM UNDERSTANDING, IDENTIFICATION OF ENTITY AND RELATIONSHIPS, CONSTRUCTION OF DB USING ER MODEL FOR THE Classroom & Lab Utilization Optimization System
+
+1.1 Introduction
+
+The Classroom & Lab Utilization Optimization System (CLUS) is a structured database-driven solution designed to modernize and streamline the scheduling and allocation of classrooms and laboratory resources in academic institutions. In large campuses where multiple departments, batches, and courses compete for limited physical infrastructure, manual scheduling methods often result in inefficient room utilization, idle facilities, double bookings, and timetable conflicts. In today's data-centric academic environment, effective infrastructure management depends on accurate, centralized, and well-structured scheduling data. This project moves beyond simple timetable recording to build an integrated relational database environment that supports the complete allocation lifecycle - from room and lab registration to time-slot mapping, batch scheduling, and conflict detection.
+
+At its core, the system addresses the absence of centralized tracking and visibility that commonly exists in manual or fragmented scheduling processes. By implementing a well-designed and normalized relational database model, the project ensures that every scheduling component - including room details, capacity, time slots, departments, batches, and course schedules - is logically organized and interlinked. This reduces redundancy, prevents allocation clashes, and improves transparency in room usage patterns. The resulting database framework enables institutions to analyze utilization, detect conflicts automatically, and support efficient, conflict-free classroom and lab allocation through reliable data management.
+
+
+1.2 Motivation
+
+      A centralized database system can track room usage by time slot and prevent conflicts.
+
+1.3 Scope
+
+? Track room utilization
+? Prevent double booking
+? Identify idle rooms
+? Centralize schedule data
+
+
+Key Features;
+
+? Centralized Scheduling Database
+All classroom and laboratory scheduling data is stored in a single structured database instead of scattered manual records, ensuring consistency and easy access.
+? Room & Lab Resource Management
+Maintains complete details of rooms and labs including room ID, type (classroom/lab), and capacity for proper allocation.
+? Time Slot Based Scheduling
+Uses predefined time slots with day and start-end times to standardize scheduling and avoid overlaps.
+? Department-Course-Batch Mapping
+Links departments with their courses and student batches, enabling accurate and organized schedule creation.
+? Conflict Detection Mechanism
+Identifies double bookings by checking room-time slot combinations and flags scheduling conflicts through queries and constraints.
+? Idle Room Identification
+Supports queries to detect unused classrooms/labs, helping improve infrastructure utilization.
+? Relational Integrity with Foreign Keys
+Enforces referential integrity between tables (Department, Course, Batch, Room, Time_Slot, Course_Schedule) to prevent invalid data entries.
+? Normalized Database Design
+Designed using normalization principles to reduce redundancy and eliminate update, insertion, and deletion anomalies.
+? Utilization Analysis Queries
+Provides aggregate and analytical queries to measure how frequently each room or lab is used.
+? Scalable Structure
+Database schema supports future expansion such as adding faculty allocation, exam scheduling, or automated timetable generation.
+? Transaction & Concurrency Support
+Includes transaction control and locking concepts to ensure safe updates when multiple scheduling operations occur.
+If you want, next I can give you Objectives, Modules, and System Advantages sections also in the same report-ready format.
+
+This system applies core DBMS concepts such as normalization, indexing, stored procedures, and ACID compliance.
+
+1.4 Problem Statement
+
+Manual classroom scheduling in academic institutions often leads to inefficient utilization of rooms, where some classrooms remain idle while others are overbooked. This lack of centralized tracking results in scheduling conflicts and poor visibility of room usage. The proposed system aims to design a database that records classroom details, time slots, and course schedules to analyze utilization and support conflict-free and efficient room allocation.
+
+
+1.5 Project Requirements:
+
+
+? Functional Requirements
+The system must store complete details of classrooms and laboratories, including room ID, type, and seating capacity.
+The system must maintain department information and link it with courses and batches.
+The system must record course details such as course ID, course name, and associated department.
+The system must store batch details including year of study, section, student count, and department.
+The system must define and manage time slots with day, start time, and end time.
+The system must support course scheduling by mapping course, batch, room, and time slot.
+The system must prevent or detect double booking of rooms for the same time slot.
+The system must allow queries to identify free/idle rooms and labs.
+The system must support utilization analysis queries to measure room usage frequency.
+The system must enforce primary key and foreign key constraints to maintain referential integrity.
+
+? Non-Functional Requirements
+The database must ensure data accuracy and consistency through constraints and normalization.
+The system should support fast query execution for schedule lookup and utilization reports.
+The design must be scalable to support additional modules like faculty allocation and exam scheduling.
+The system must support concurrent access using transaction and locking mechanisms.
+The database must be secure and reliable, with proper transaction control (commit/rollback).
+The schema must be normalized to reduce redundancy and avoid anomalies.
+
+
+1.6 Identification of Entity Relationships
+Entities:
+? Room
+? Time_Slot
+? Department
+? Course
+? Batch
+? Course_Schedule
+Entity Attributes:
+Room
+? room_id (PK)
+? room_type
+? capacity
+Time_Slot
+? slot_id (PK)
+? day
+? start_time
+? end_time
+Department
+? dept_id (PK)
+? dept_name
+Course
+? course_id (PK)
+? course_name
+? dept_id (FK)
+Batch
+? batch_id (PK)
+? year_of_study
+? section
+? student_count
+? dept_id (FK)
+Course_Schedule
+? schedule_id (PK)
+? course_id (FK)
+? batch_id (FK)
+? room_id (FK)
+? slot_id (FK)
+Relationships:
+FromRelationshipToCardinalityDepartmentoffersCourse1 : MDepartmenthasBatch1 : MBatchIs scheduledCourse_Schedule1 : MCourseis taught inCourse_Schedule1 : MRoomis allocatedCourse_Schedule1 : MTime_Slotoccurs atCourse_Schedule1 : M
+1.7 Construction of DB Using ER Model for the Classroom Utilization & Optimization System
+
+
+
+
+
+
+
+
+
+Chapter 2
+Design of Relational Schemas and Creation of Database and Tables for a Classroom & Lab Utilization Optimization System
+
+2.1 Relational Schema for Classroom Utilization & Optimization System
+
+
+
+The above figure depicts the relational schema for the Classroom Utilization & Optimization System.
+This schema translates the conceptual ER model into a practical database structure, applying normalization rules to handle complex data types.
+
+
+
+
+
+
+
+2.2 Description of Tables
+
+Table: Department
+Purpose: Stores information about academic departments within the institution.
+Primary Key: dept_id (INT)
+Attribute NameData TypeConstraintsdept_idINTPrimary Keydept_nameVARCHARNOT NULLTable: Course
+Purpose: Stores details of courses offered by different departments.
+Primary Key: course_id (INT)
+
+Attribute NameData TypeConstraintscourse_idINTPrimary Keycourse_nameVARCHARNOT NULLdept_idINTForeign Key ? Department(dept_id)Table: Batch
+Purpose: Represents class sections of students belonging to a specific year of study and department.
+Primary Key: batch_id (INT)
+Attribute NameData TypeConstraintsbatch_idINTPrimary Keyyear_of_studyINTNOT NULLsectionCHARNOT NULLstudent_countINTNOT NULLdept_idINTForeign Key ? Department(dept_id) 
+ 
+Table: Room
+Purpose: Stores information about classrooms and labs, including their type and seating capacity.
+Primary Key: room_id (INT)
+Attribute NameData TypeConstraintsroom_idINTPrimary Keyroom_typeVARCHAR-capacityINTNOT NULLTable: Time_Slot
+Purpose: Defines the time intervals during which classes can be scheduled.
+Primary Key: slot_id (INT)
+Attribute NameData TypeConstraintsslot_idINTPrimary KeydayVARCHAR-start_timeTIMENOT NULLend_timeTIMENOT NULLTable: Course_Schedule
+Purpose: Stores scheduling details by linking batches, courses, rooms, and time slots, and serves as the basis for classroom utilization and conflict detection.
+Primary Key: schedule_id (INT)
+Attribute NameData TypeConstraintsschedule_idINTPrimary Keycourse_idINTForeign Key ? Course(course_id)batch_idINTForeign Key ? Batch(batch_id)room_idINTForeign Key ? Room(room_id)slot_idINTForeign Key ? Time_Slot(slot_id)
+
+
+
+
+2.3 Creation of Database and Tables - DDL Commands 
+
+       1) Database Creation:
+CREATE DATABASE classroom_utilization_db;
+USE classroom_utilization_db;
+
+2) Table Creation:
+CREATE TABLE Department (
+    dept_id INT PRIMARY KEY,
+    dept_name VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE Course (
+    course_id INT PRIMARY KEY,
+    course_name VARCHAR(50) NOT NULL,
+    dept_id INT,
+    FOREIGN KEY (dept_id) REFERENCES Department(dept_id)
+);
+
+CREATE TABLE Batch (
+    batch_id INT PRIMARY KEY,
+    year_of_study INT NOT NULL,
+    section CHAR(1) NOT NULL,
+    student_count INT NOT NULL,
+    dept_id INT,
+    FOREIGN KEY (dept_id) REFERENCES Department(dept_id)
+);
+
+CREATE TABLE Room (
+    room_id INT PRIMARY KEY,
+    room_type VARCHAR(20),
+    capacity INT NOT NULL
+);
+
+CREATE TABLE Time_Slot (
+    slot_id INT PRIMARY KEY,
+    day VARCHAR(10),
+    start_time TIME,
+    end_time TIME
+);
+
+CREATE TABLE Course_Schedule (
+    schedule_id INT PRIMARY KEY,
+    course_id INT,
+    batch_id INT,
+    room_id INT,
+    slot_id INT,
+    FOREIGN KEY (course_id) REFERENCES Course(course_id),
+    FOREIGN KEY (batch_id) REFERENCES Batch(batch_id),
+    FOREIGN KEY (room_id) REFERENCES Room(room_id),
+    FOREIGN KEY (slot_id) REFERENCES Time_Slot(slot_id)
+);
+
+
+2.4 Insertion of tuples into the table - DML commands
+
+
+       3) INSERTION OF DATA (DML)
+INSERT INTO Department VALUES
+(1, 'CSE'),
+(2, 'ECE');
+
+INSERT INTO Course VALUES
+(101, 'DBMS', 1),
+(102, 'Operating Systems', 1);
+
+INSERT INTO Batch VALUES
+(201, 2, 'A', 60, 1),
+(202, 2, 'B', 58, 1);
+
+INSERT INTO Room VALUES
+(301, 'Classroom', 60),
+(302, 'Classroom', 120);
+
+INSERT INTO Time_Slot VALUES
+(401, 'Monday', '09:00:00', '10:00:00'),
+(402, 'Monday', '10:00:00', '11:00:00');
+
+INSERT INTO Course_Schedule VALUES
+(1, 101, 201, 301, 401),
+(2, 102, 202, 302, 401),
+(3, 101, 201, 301, 402);
+
+
+       4) Utilization Query
+SELECT room_id, COUNT(*)
+FROM Course_Schedule
+GROUP BY room_id;
+This shows how many times each room is used.
+
+
+       5) Find Free Rooms
+SELECT room_id
+FROM Room
+WHERE room_id NOT IN
+(SELECT room_id FROM Course_Schedule);
+This detects idle infrastructure - main project goal.
+
+6) Conflict Detection Query
+SELECT room_id, slot_id, COUNT(*)
+FROM Course_Schedule
+GROUP BY room_id, slot_id
+HAVING COUNT(*) > 1;
+This detects double booking conflicts.
+

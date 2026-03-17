@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, Calendar, TrendingUp, CheckCircle } from 'lucide-react';
+import { fetchUtilizationReport, fetchFreeRooms, fetchSchedules, fetchRooms } from '../lib/api';
 
 interface Stats {
   totalRooms: number;
@@ -12,8 +13,9 @@ interface RoomUtilization {
   room_number: string;
   room_type: string;
   capacity: number;
-  total_allocations: number;
-  utilization_percentage: number;
+  slots_used: number; // Updated column name from DB
+  total_allocations?: number; // Kept for backwards compatibility 
+  utilization_percentage?: number;
 }
 
 export default function Dashboard() {
@@ -27,32 +29,19 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
-      const headers = {
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-      };
-
-      const [utilizationRes, conflictsRes, freeRoomsRes, schedulesRes, roomsRes] = await Promise.all([
-        fetch(`${apiUrl}/schedule-api/utilization`, { headers }),
-        fetch(`${apiUrl}/schedule-api/conflicts`, { headers }),
-        fetch(`${apiUrl}/schedule-api/free-rooms`, { headers }),
-        fetch(`${apiUrl}/schedule-api/schedules`, { headers }),
-        fetch(`${apiUrl}/data-api/rooms`, { headers }),
+      const [utilizationData, freeRoomsData, schedulesData, roomsData] = await Promise.all([
+        fetchUtilizationReport(),
+        fetchFreeRooms(),
+        fetchSchedules(),
+        fetchRooms()
       ]);
 
-      const utilizationData = await utilizationRes.json();
-      const conflictsData = await conflictsRes.json();
-      const freeRoomsData = await freeRoomsRes.json();
-      const schedulesData = await schedulesRes.json();
-      const roomsData = await roomsRes.json();
-
-      setUtilization(utilizationData.data || []);
+      setUtilization(utilizationData || []);
       setStats({
-        totalRooms: roomsData.data?.length || 0,
-        totalSchedules: schedulesData.data?.length || 0,
-        conflicts: conflictsData.data?.length || 0,
-        freeRooms: freeRoomsData.data?.length || 0,
+        totalRooms: roomsData?.length || 0,
+        totalSchedules: schedulesData?.length || 0,
+        conflicts: 0, // Since frontend uses our trigger for conflict detection, we don't return conflict table yet
+        freeRooms: freeRoomsData?.length || 0,
       });
     } catch (error) {
       console.error('Error loading dashboard:', error);
@@ -134,7 +123,7 @@ export default function Dashboard() {
                     {room.capacity}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {room.total_allocations}
+                    {room.slots_used}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">

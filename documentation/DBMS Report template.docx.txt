@@ -1,0 +1,431 @@
+(A typical Specimen of Cover Page & Title Page)
+<Font Style Times New Roman - Bold>
+PROJECT TITLE
+<Font Size 18> <1.5 line spacing>
+ 21CSC205P Database Management Systems 
+A MINI PROJECT REPORT 
+<Font Size 14>
+Submitted by
+<Font Size 14> <Italic>
+STUDENT1 NAME [REG NUM]
+ STUDENT2 NAME [REG NUM]
+<Font Size 16>
+Under the Guidance of
+<Font Size 14> <Italic>
+(GUIDE NAME )
+<Font Size 16>
+(Designation, Department)
+<Font Size 12>
+
+in partial fulfillment of the requirements for the degree of
+<Font Size 14> <1.5 line spacing>
+BACHELOR OF TECHNOLOGY
+in
+COMPUTER SCIENCE ENGINEERING 
+with specialization in (SPECIALIZATION NAME)
+<Font Size 16>
+
+
+DEPARTMENT OF NETWROKING AND COMMUNICATIONS
+SCHOOL OF COMPUTING		
+COLLEGE OF ENGINEERING AND TECHNOLOGY
+SRM INSTITUTE OF SCIENCE AND TECHNOLOGY
+KATTANKULATHUR- 603 203
+                                                   <Font Size 16><l.5 line spacing>
+MAY 2026<Font Size 14>
+
+
+
+        SRM INSTITUTE OF SCIENCE AND TECHNOLOGY KATTANKULATHUR - 603 203
+<Font Style Times New Roman - Size - 18>
+BONAFIDE CERTIFICATE
+<Font Style Times New Roman - Size - 16>
+<Font Style Times New Roman - Size - 14>
+
+
+Certified that Project report titled "PROJECT TITLE " is the bonafide work of "STUDENT1 NAME [REG NUM], STUDENT2 NAME [REG NUM]" who carried out the 21CSC205P Database Management Systems mini project work under my supervision. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+COURSE FACULTY                                                                         HEAD OF THE DEPARMENTDESIGNATION
+DepartmentPROFESSOR AND HEAD
+Department
+                                                                          
+      
+           
+
+
+               
+
+ABSTRACT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+TABLE OF CONTENTS
+
+Chapter No.TitlePage no.ABSTRACT1Problem understanding, Identification of Entity and Relationships, Construction of DB using ER Model for their project2Design of Relational Schemas, Creation of Database and Tables for their project33.1Writing queries based on the concepts of Aggregate functions, constraints, sets3.2 Writing complex queries based on subqueries, joins and views3.3 Writing complex queries based on the concepts of functions, Triggers, Cursors and Exception Handling44.1 Analysing the pitfalls, identifying the dependencies, and applying Normalizations- 1NF, 2NF, 3NF4.2 Analysing the pitfalls, identifying the dependencies, and applying Normalizations- 4NF, 5NF5 Implementation of concurrency control and recovery mechanisms.  6Front-end And Back-End Implementation code 7Results and Discussions
+
+
+
+LIST OF FIGURES
+
+	
+Figure No.NamePage no.12345
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LIST OF TABLES
+
+	
+Figure No.NamePage no.12345
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CHAPTER 1
+
+PROBLEM UNDERSTANDING, IDENTIFICATION OF ENTITY AND RELATIONSHIPS, CONSTRUCTION OF DB USING ER MODEL FOR THE <PROJECT Name>
+
+1.1 Introduction
+1.2 Motivation
+1.3  Scope
+1.4  Problem Statement
+1.5 Project Requirements
+1.6  Identification of Entity and Relationships
+1.7 Construction of DB Using ER Model for the <Project name>
+
+
+
+
+Note: 
+* Use font family: Times new roman, size 12
+* Figure name: Chapter no. Figure no: Figure Name, Place in in bottom center of the figure (eg: Figure 1.1: ER diagram of Student Management System)
+* Figures must be clear with all text inside it visible 
+* Table name: Chapter no. Table no: Table name, Place in in top center of the table
+(eg: Table 1.1: Student Schema)
+* Table must not be pasted in image format, must be editable
+* All text must be properly aligned (justified)
+* Set the page margin
+
+Chapter 2
+Design of Relational Schemas, Creation of Database and Tables for <Project Title>
+                  
+2.1 Relational Schema for <project title>
+Sample
+
+Figure 2.1: Relational Schema for <project title>
+The figure 2.1 depicts the relational schema for the <project title> . (give explanation)
+
+2.2 Description of Tables
+Sample
+
+
+List all the table with the attributes, datatypes, size, constraints
+2.3 Creation of Database and Tables - DDL Commands 
+DDL Commands to create all the tables
+2.4 Insertion of tuples into the table - DML commands
+Insert SQL (for all tables)
+Example: 
+INSERT INTO Customers (CustomerName, ContactName, Address, City, PostalCode, Country) VALUES ('Cardinal', 'Tom B. Erichsen', 'Skagen 21', 'Stavanger', '4006', 'Norway'),
+('Greasy Burger', 'Per Olsen', 'Gateveien 15', 'Sandnes', '4306', 'Norway'),
+('Tasty Tee', 'Finn Egan', 'Streetroad 19B', 'Liverpool', 'L1 0AA', 'UK');
+Customer table:
+CustomerIDCustomerNameContactNameAddressCityPostalCodeCountry89White Clover MarketsKarl Jablonski305 - 14th Ave. S. Suite 3BSeattle98128USA90
+Wilman KalaMatti KarttunenKeskuskatu 45Helsinki21240Finland
+CHAPTER 3
+Complex queries based on the concepts of constraints, sets, joins, views, Triggers and Cursors.
+(min 3 questions with queries for all topics)
+< create complex queries based on the sub-topic with questions and SQL statement with output>
+
+3.1 Adding Constraints and queries based on constraints
+Question:
+
+SQL Statement:
+
+Output:
+
+3.2 Queries based on Aggregate Functions
+
+Question:
+
+SQL Statement:
+
+Output:
+
+3.3 Complex queries based on Sets
+Question:
+
+SQL Statement:
+
+Output:
+
+3.4 Complex queries based on Subqueries
+
+Question:
+
+SQL Statement:
+
+Output:
+
+3.5 Complex queries based on Joins
+Question:
+
+SQL Statement:
+
+Output:
+
+3.6 Complex queries based on views
+Question:
+
+SQL Statement:
+
+Output:
+
+
+3.7 Complex queries based on Triggers
+Question:
+
+SQL Statement:
+
+Output:
+
+3.8 Complex queries based on Cursors
+Question:
+
+SQL Statement:
+
+Output:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CHAPTER 4 
+
+ANALYZING THE PITFALLS, IDENTIFYING THE DEPENDENCIES, AND APPLYING NORMALIZATIONS
+
+(show the table before and after respective normalization)
+
+4.1 Analyse the Pitfalls in Relations 
+4.2 First Normal Form
+4.2.1: Identify Dependency 
+4.2.2: Apply Normalization to 1NF
+
+4.3 Second Normal Form
+4.3.1: Identify Dependency
+4.3.2: Apply Normalization to 2NF
+
+4.4 Third Normal Form
+4.4.1: Identify Dependency
+4.4.2: Apply Normalization to 3NF
+
+4.5 BCNF 
+4.5.1: Identify Dependency
+4.5.2: Apply Normalization to BCNF 
+
+4.6 Fourth Normal Form
+4.6.1: Identify Dependency
+4.6.2: Apply Normalization to 4NF
+
+4.7 Fifth Normal Form
+4.7.1: Identify Dependency
+4.7.2: Apply Normalization to 5NF
+
+CHAPTER 5 
+IMPLEMENTATION OF CONCURRENCY CONTROL AND RECOVERY MECHANISMS
+
+5.1 Introduction to Transactions
+	5.1.1 Properties
+	5.1.2 States
+5.2 Transaction Control Language (TCL)
+	5.2.1 Save point
+	5.2.2 Commit
+	5.2.3 Rollback
+
+5.3 create 5 transactions for your project and execute
+5.3.1 Transaction1 code with output (min 5 transactions)
+Use savepoints, commit, rollback
+ < Sample:
+-- Step 1: Start transaction by updating book availability
+UPDATE Books
+SET available_copies = available_copies - 1 WHERE book_id = 101;
+
+-- Step 2: Set a savepoint after first change
+SAVEPOINT after_first_update;
+
+-- Step 3: Another update
+UPDATE Books SET available_copies = available_copies - 1 WHERE book_id = 102;
+
+-- Step 4: Oops! Something's wrong with second update, rollback to savepoint
+ROLLBACK TO after_first_update;
+
+-- Step 5: Continue with a safe update
+UPDATE Books SET available_copies = available_copies + 1 WHERE book_id = 101;
+
+-- Step 6: Commit all changes since savepoint
+COMMIT; >
+
+Sample 2:
+
+
+
+
+
+5.3 Concurrency control
+5.3.1 Concurrency control Algorithms
+5.3.1 Locking commands 
+	a. Row-Level Locking - SELECT ... FOR UPDATE
+ 	b. Table-Level Locking - LOCK TABLE
+Lock Modes
+Lock ModeDescriptionROW SHAREAllows concurrent access; prevents other sessions from locking the table exclusively.ROW EXCLUSIVEPrevents other sessions from locking in share mode. Used by default for DML.SHAREAllows queries but not updates or deletes.SHARE ROW EXCLUSIVEA mix; more restrictive than SHARE.EXCLUSIVEPrevents all other access - full table lock.
+       c. COMMIT - Release All Locks
+       d. ROLLBACK - Undo Changes & Release Locks
+         5.3.2 Example (1 example for your project)
+
+
+
+
+
+
+
+
+
+
+
+
+
+CHAPTER 6
+FRONT-END AND BACK-END CODE OF <PROJECT TITLE>
+
+6.1 Front-End Module codes
+6.2 Database connectivity
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CHAPTER 7
+RESULTS AND DISCUSSIONS
+
+7.1 Screenshots of front-end
+
+7.2 Screenshots of Database
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+References
+
+
+
+
+
+4
+
+
