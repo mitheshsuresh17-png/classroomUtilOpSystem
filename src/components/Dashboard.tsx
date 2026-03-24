@@ -130,12 +130,12 @@ export default function Dashboard() {
                       <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
                         <div
                           className={`h-2 rounded-full ${
-                            room.utilization_percentage > 50 ? 'bg-green-500' : 'bg-yellow-500'
+                            (room.utilization_percentage || 0) > 50 ? 'bg-green-500' : 'bg-yellow-500'
                           }`}
-                          style={{ width: `${Math.min(room.utilization_percentage, 100)}%` }}
+                          style={{ width: `${Math.min(room.utilization_percentage || 0, 100)}%` }}
                         />
                       </div>
-                      <span className="text-sm text-gray-600">{room.utilization_percentage}%</span>
+                      <span className="text-sm text-gray-600">{room.utilization_percentage || 0}%</span>
                     </div>
                   </td>
                 </tr>

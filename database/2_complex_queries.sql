@@ -36,11 +36,11 @@ WHERE b.student_count > r.capacity;
 -- Q: List all distinct room numbers used on 'Monday' UNION 'Tuesday' (Combine usage across days).
 SELECT DISTINCT r.room_number
 FROM Room r JOIN Course_Schedule cs ON r.room_id = cs.room_id JOIN Time_Slot ts ON cs.slot_id = ts.slot_id
-WHERE ts.day_of_week = 'Monday'
+WHERE ts.day_of_week = '1'
 UNION
 SELECT DISTINCT r.room_number
 FROM Room r JOIN Course_Schedule cs ON r.room_id = cs.room_id JOIN Time_Slot ts ON cs.slot_id = ts.slot_id
-WHERE ts.day_of_week = 'Tuesday';
+WHERE ts.day_of_week = '2';
 
 -- Q: Find Free Rooms (rooms that are NOT in the Course_Schedule table) using Set Exception simulation (MySQL uses NOT IN or LEFT JOIN for Except).
 SELECT room_number FROM Room

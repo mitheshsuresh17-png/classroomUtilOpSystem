@@ -115,12 +115,12 @@ BEGIN
     DECLARE u_percent DECIMAL(5,2);
     DECLARE status_msg VARCHAR(50);
     
+    -- Cursor Definition
+    DECLARE room_cursor CURSOR FOR SELECT room_id, room_number FROM Room;
+
     -- Exception Handling
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
     DECLARE CONTINUE HANDLER FOR SQLEXCEPTION Select 'An error occurred during evaluation' as ErrorMessage;
-
-    -- Cursor Definition
-    DECLARE room_cursor CURSOR FOR SELECT room_id, room_number FROM Room;
     
     -- Temporary table to hold output
     DROP TEMPORARY TABLE IF EXISTS Temp_Room_Report;

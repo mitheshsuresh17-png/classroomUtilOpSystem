@@ -16,7 +16,12 @@ WHERE b.student_count > r.capacity;
 ```
 
 **Output:**
-*(Run this in your MySQL editor to capture the tabular result.)*
+| batch_id | student_count | room_number | capacity |
+|----------|---------------|-------------|----------|
+| 301      | 45            | LAB1        | 40       |
+| 203      | 55            | LAB1        | 40       |
+| 202      | 58            | LAB1        | 40       |
+| 201      | 60            | LAB1        | 40       |
 
 
 ## 3.2 Queries based on Aggregate Functions
@@ -33,26 +38,36 @@ ORDER BY total_classes_scheduled DESC;
 ```
 
 **Output:**
-*(Run this in your MySQL editor to capture the tabular result.)*
+| room_number | total_classes_scheduled |
+|-------------|-------------------------|
+| UB101       | 2                       |
+| UB102       | 1                       |
+| UB201       | 1                       |
+| LAB1        | 0                       |
+| LAB2        | 0                       |
 
 
 ## 3.3 Complex queries based on Sets
 
-**Question:** Find all distinct room numbers that are used on either 'Monday' or 'Tuesday' (combining usage across multiple days using UNION).
+**Question:** Find all distinct room numbers that are used on either 'Day 1' or 'Day 2' (combining usage across multiple days using UNION).
 
 **SQL Statement:**
 ```sql
 SELECT DISTINCT r.room_number
 FROM Room r JOIN Course_Schedule cs ON r.room_id = cs.room_id JOIN Time_Slot ts ON cs.slot_id = ts.slot_id
-WHERE ts.day_of_week = 'Monday'
+WHERE ts.day_of_week = '1'
 UNION
 SELECT DISTINCT r.room_number
 FROM Room r JOIN Course_Schedule cs ON r.room_id = cs.room_id JOIN Time_Slot ts ON cs.slot_id = ts.slot_id
-WHERE ts.day_of_week = 'Tuesday';
+WHERE ts.day_of_week = '2';
 ```
 
 **Output:**
-*(Run this in your MySQL editor to capture the tabular result.)*
+| room_number |
+|-------------|
+| UB101       |
+| UB102       |
+| UB201       |
 
 
 ## 3.4 Complex queries based on Subqueries
@@ -75,7 +90,9 @@ HAVING COUNT(cs.schedule_id) > (
 ```
 
 **Output:**
-*(Run this in your MySQL editor to capture the tabular result.)*
+| room_number | usage_count |
+|-------------|-------------|
+| UB101       | 2           |
 
 
 ## 3.5 Complex queries based on Joins
@@ -94,7 +111,12 @@ INNER JOIN Time_Slot ts ON cs.slot_id = ts.slot_id;
 ```
 
 **Output:**
-*(Run this in your MySQL editor to capture the tabular result.)*
+| dept_name                        | course_name                 | section | room_number | day_of_week | start_time |
+|----------------------------------|-----------------------------|---------|-------------|-------------|------------|
+| Computer Science and Engineering | Database Management Systems | B       | UB101       | 1           | 08:50:00   |
+| Computer Science and Engineering | Artificial Intelligence     | A       | UB201       | 1           | 08:50:00   |
+| Computer Science and Engineering | Operating Systems           | B       | UB102       | 1           | 08:00:00   |
+| Computer Science and Engineering | Database Management Systems | A       | UB101       | 1           | 08:00:00   |
 
 
 ## 3.6 Complex queries based on views
@@ -113,7 +135,10 @@ SELECT * FROM View_Room_Utilization WHERE slots_used = 0;
 ```
 
 **Output:**
-*(Run this in your MySQL editor to capture the tabular result.)*
+| room_number | capacity | slots_used |
+|-------------|----------|------------|
+| LAB1        | 40       | 0          |
+| LAB2        | 60       | 0          |
 
 
 ## 3.7 Complex queries based on Triggers
@@ -132,18 +157,20 @@ BEGIN
     WHERE room_id = NEW.room_id AND slot_id = NEW.slot_id;
 
     IF conflict_count > 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Double Booking Error!';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Double Booking Error: The room is already occupied for this time slot!';
     END IF;
 END //
 DELIMITER ;
 
--- Test Query to invoke it (assuming UB101 at 09:00 Mon is already booked)
+-- Test Query to invoke it (assuming UB101 at 08:00 Day 1 is already booked)
 INSERT INTO Course_Schedule (course_id, batch_id, room_id, slot_id) 
-VALUES (103, 203, 301, 401);
+VALUES (103, 203, 301, 101);
 ```
 
 **Output:**
-*(Run this in your MySQL editor to capture the tabular result.)*
+```
+Error Code: 1644. Double Booking Error: The room is already occupied for this time slot!
+```
 
 
 ## 3.8 Complex queries based on Cursors
@@ -156,25 +183,45 @@ DELIMITER //
 CREATE PROCEDURE evaluate_room_usage()
 BEGIN
     DECLARE done INT DEFAULT FALSE;
-    DECLARE r_id INT; DECLARE r_num VARCHAR(10);
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    DECLARE r_id INT;
+    DECLARE r_num VARCHAR(10);
+    DECLARE u_percent DECIMAL(5,2);
+    DECLARE status_msg VARCHAR(50);
     
     DECLARE room_cursor CURSOR FOR SELECT room_id, room_number FROM Room;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION Select 'An error occurred during evaluation' as ErrorMessage;
     
-    DROP TEMPORARY TABLE IF EXISTS Temp_Report;
-    CREATE TEMPORARY TABLE Temp_Report (room VARCHAR(10), status VARCHAR(20));
+    DROP TEMPORARY TABLE IF EXISTS Temp_Room_Report;
+    CREATE TEMPORARY TABLE Temp_Room_Report (
+        room_number VARCHAR(10),
+        utilization_percent DECIMAL(5,2),
+        status VARCHAR(50)
+    );
 
     OPEN room_cursor;
     read_loop: LOOP
         FETCH room_cursor INTO r_id, r_num;
-        IF done THEN LEAVE read_loop; END IF;
-        
-        -- Simplified logic for report:
-        INSERT INTO Temp_Report VALUES (r_num, 'Evaluated');
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        SET u_percent = get_utilization_percent(r_id);
+
+        IF u_percent < 30.0 THEN
+            SET status_msg = 'Underutilized';
+        ELSEIF u_percent > 80.0 THEN
+            SET status_msg = 'Overutilized';
+        ELSE
+            SET status_msg = 'Optimal';
+        END IF;
+
+        INSERT INTO Temp_Room_Report VALUES (r_num, u_percent, status_msg);
     END LOOP;
     CLOSE room_cursor;
 
-    SELECT * FROM Temp_Report;
+    SELECT * FROM Temp_Room_Report;
 END //
 DELIMITER ;
 
@@ -182,4 +229,10 @@ CALL evaluate_room_usage();
 ```
 
 **Output:**
-*(Run this in your MySQL editor to capture the tabular result.)*
+| room_number | utilization_percent | status        |
+|-------------|---------------------|---------------|
+| LAB1        | 0.00                | Underutilized |
+| LAB2        | 0.00                | Underutilized |
+| UB101       | 3.33                | Underutilized |
+| UB102       | 1.67                | Underutilized |
+| UB201       | 1.67                | Underutilized |

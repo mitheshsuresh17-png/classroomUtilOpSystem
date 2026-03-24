@@ -31,7 +31,14 @@ export const fetchTimeSlots = async () => {
     return res.json();
 };
 
-export const scheduleRoom = async (scheduleData) => {
+interface SchedulePayload {
+    course_id: string;
+    batch_id: string;
+    room_id: string;
+    slot_id: string;
+}
+
+export const scheduleRoom = async (scheduleData: SchedulePayload) => {
     const res = await fetch(`${API_BASE_URL}/schedules`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,8 +64,62 @@ export const fetchFreeRooms = async () => {
     return res.json();
 };
 
+export const fetchEmptySlots = async () => {
+    const res = await fetch(`${API_BASE_URL}/reports/empty-slots`);
+    if (!res.ok) throw new Error('Failed to fetch empty slots');
+    return res.json();
+};
+
 export const evaluateRoomUsage = async () => {
     const res = await fetch(`${API_BASE_URL}/reports/cursor-evaluation`);
     if (!res.ok) throw new Error('Failed to evaluate room usage');
+    return res.json();
+};
+
+// ==========================================
+// Advanced Analytics Fetch Methods
+// ==========================================
+
+export const fetchDepartmentCourseLoad = async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/department-course-load`);
+    if (!res.ok) throw new Error('Failed to fetch department course load');
+    return res.json();
+};
+
+
+
+export const fetchUnscheduledCourses = async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/unscheduled-courses`);
+    if (!res.ok) throw new Error('Failed to fetch unscheduled courses');
+    return res.json();
+};
+
+export const fetchRoomSaturation = async (minSaturation: number = 0.90) => {
+    const res = await fetch(`${API_BASE_URL}/analytics/room-saturation?min_saturation=${minSaturation}`);
+    if (!res.ok) throw new Error('Failed to fetch room saturation');
+    return res.json();
+};
+
+export const fetchInfrastructureAverages = async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/infrastructure-averages`);
+    if (!res.ok) throw new Error('Failed to fetch infrastructure averages');
+    return res.json();
+};
+
+export const fetchTriggerTroubleshooting = async (batchId: string = '201', roomNumber: string = 'UB102') => {
+    const res = await fetch(`${API_BASE_URL}/analytics/trigger-troubleshooting?batch_id=${batchId}&room_number=${roomNumber}`);
+    if (!res.ok) throw new Error('Failed to fetch trigger troubleshooting');
+    return res.json();
+};
+
+export const fetchInfrastructureSorting = async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/infrastructure-sorting`);
+    if (!res.ok) throw new Error('Failed to fetch infrastructure sorting');
+    return res.json();
+};
+
+export const fetchTrappedCapacity = async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/trapped-capacity`);
+    if (!res.ok) throw new Error('Failed to fetch trapped capacity');
     return res.json();
 };
