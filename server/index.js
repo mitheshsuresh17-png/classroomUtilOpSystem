@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 import db from './db.js';
 
 dotenv.config();
@@ -267,6 +268,56 @@ app.get('/api/reports/cursor-evaluation', async (req, res) => {
     const [rows] = await db.query('CALL evaluate_room_usage()');
     // Result from a CALL is an array of result sets; the first element is the temp table selection
     res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// Authentication Routes
+// ==========================================
+
+// Sign Up
+app.post('/api/auth/signup', async (req, res) => {
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email, and password are required.' });
+  }
+  try {
+    // Check if email already exists
+    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'An account with this email already exists.' });
+    }
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+    const [result] = await db.query(
+      'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
+      [name, email, password_hash]
+    );
+    res.status(201).json({ user: { id: result.insertId, name, email } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Sign In
+app.post('/api/auth/signin', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+  try {
+    const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+    const user = rows[0];
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+    res.json({ user: { id: user.id, name: user.name, email: user.email } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

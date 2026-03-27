@@ -1,6 +1,32 @@
 // Base URL for the Express API server
 const API_BASE_URL = 'http://localhost:5000/api';
 
+// ==========================================
+// Authentication
+// ==========================================
+
+export const registerUser = async (name: string, email: string, password: string) => {
+    const res = await fetch(`${API_BASE_URL}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Signup failed');
+    return data;
+};
+
+export const loginUser = async (email: string, password: string) => {
+    const res = await fetch(`${API_BASE_URL}/auth/signin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    return data;
+};
+
 export const fetchRooms = async () => {
     const res = await fetch(`${API_BASE_URL}/rooms`);
     if (!res.ok) throw new Error('Failed to fetch rooms');

@@ -13,8 +13,8 @@ interface RoomUtilization {
   room_number: string;
   room_type: string;
   capacity: number;
-  slots_used: number; // Updated column name from DB
-  total_allocations?: number; // Kept for backwards compatibility 
+  slots_used: number;
+  total_allocations?: number;
   utilization_percentage?: number;
 }
 
@@ -40,7 +40,7 @@ export default function Dashboard() {
       setStats({
         totalRooms: roomsData?.length || 0,
         totalSchedules: schedulesData?.length || 0,
-        conflicts: 0, // Since frontend uses our trigger for conflict detection, we don't return conflict table yet
+        conflicts: 0,
         freeRooms: freeRoomsData?.length || 0,
       });
     } catch (error) {
@@ -52,90 +52,84 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-600">Loading dashboard...</div>
+      <div className="flex items-center justify-center h-64">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 border-[3px] border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <span className="text-gray-500 font-medium">Loading dashboard...</span>
+        </div>
       </div>
     );
   }
 
+  const statCards = [
+    { title: 'Total Rooms', value: stats.totalRooms, icon: <Calendar className="w-5 h-5 text-blue-600" />, accent: 'stat-accent-blue', bg: 'bg-blue-50' },
+    { title: 'Total Schedules', value: stats.totalSchedules, icon: <TrendingUp className="w-5 h-5 text-emerald-600" />, accent: 'stat-accent-green', bg: 'bg-emerald-50' },
+    { title: 'Conflicts', value: stats.conflicts, icon: <AlertCircle className="w-5 h-5 text-amber-600" />, accent:  'stat-accent-amber', bg: 'bg-amber-50' },
+    { title: 'Free Rooms', value: stats.freeRooms, icon: <CheckCircle className="w-5 h-5 text-teal-600" />, accent: 'stat-accent-teal', bg: 'bg-teal-50' },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Rooms"
-          value={stats.totalRooms}
-          icon={<Calendar className="w-6 h-6 text-blue-600" />}
-          bgColor="bg-blue-50"
-        />
-        <StatCard
-          title="Total Schedules"
-          value={stats.totalSchedules}
-          icon={<TrendingUp className="w-6 h-6 text-green-600" />}
-          bgColor="bg-green-50"
-        />
-        <StatCard
-          title="Conflicts"
-          value={stats.conflicts}
-          icon={<AlertCircle className="w-6 h-6 text-red-600" />}
-          bgColor="bg-red-50"
-        />
-        <StatCard
-          title="Free Rooms"
-          value={stats.freeRooms}
-          icon={<CheckCircle className="w-6 h-6 text-teal-600" />}
-          bgColor="bg-teal-50"
-        />
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+        {statCards.map((card, i) => (
+          <div key={i} className={`card p-5 ${card.accent} animate-fade-up`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">{card.title}</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{card.value}</p>
+              </div>
+              <div className={`${card.bg} p-3 rounded-xl`}>{card.icon}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Room Utilization Summary</h2>
+      {/* Utilization Table */}
+      <div className="card animate-fade-up" style={{ animationDelay: '200ms' }}>
+        <div className="card-header flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-800">Room Utilization Summary</h2>
+          <span className="text-xs text-gray-400 font-medium">{utilization.length} rooms</span>
+        </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="premium-table">
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Room
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Capacity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Allocations
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Utilization
-                </th>
+                <th>Room</th>
+                <th>Type</th>
+                <th>Capacity</th>
+                <th>Allocations</th>
+                <th>Utilization</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {utilization.map((room, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {room.room_number}
+                <tr key={index}>
+                  <td className="font-semibold text-gray-900">{room.room_number}</td>
+                  <td>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600">
+                      {room.room_type}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {room.room_type}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {room.capacity}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {room.slots_used}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                  <td className="text-gray-600">{room.capacity}</td>
+                  <td className="text-gray-600">{room.slots_used}</td>
+                  <td>
+                    <div className="flex items-center gap-3 min-w-[140px]">
+                      <div className="flex-1 bg-gray-100 rounded-full h-2">
                         <div
-                          className={`h-2 rounded-full ${
-                            (room.utilization_percentage || 0) > 50 ? 'bg-green-500' : 'bg-yellow-500'
+                          className={`h-2 rounded-full transition-all duration-500 ${
+                            (room.utilization_percentage || 0) > 70
+                              ? 'bg-gradient-to-r from-emerald-400 to-emerald-500'
+                              : (room.utilization_percentage || 0) > 30
+                              ? 'bg-gradient-to-r from-amber-400 to-amber-500'
+                              : 'bg-gradient-to-r from-red-400 to-red-500'
                           }`}
                           style={{ width: `${Math.min(room.utilization_percentage || 0, 100)}%` }}
                         />
                       </div>
-                      <span className="text-sm text-gray-600">{room.utilization_percentage || 0}%</span>
+                      <span className="text-sm font-semibold text-gray-600 w-10 text-right">
+                        {room.utilization_percentage || 0}%
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -143,27 +137,6 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
-  );
-}
-
-interface StatCardProps {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  bgColor: string;
-}
-
-function StatCard({ title, value, icon, bgColor }: StatCardProps) {
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
-        </div>
-        <div className={`${bgColor} p-3 rounded-lg`}>{icon}</div>
       </div>
     </div>
   );

@@ -1,3 +1,209 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ==========================================
+   CLUS Design System - Global Styles
+   ========================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ==========================================
+   Floating Animations for Auth Page
+   ========================================== */
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  50% { transform: translateY(-6px) translateX(3px); }
+}
+
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  50% { transform: translateY(-4px) translateX(-3px); }
+}
+
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  50% { transform: translateY(-5px) translateX(2px); }
+}
+
+@keyframes particle-drift-1 {
+  0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.5; }
+  50% { transform: translateY(-8px) translateX(5px) scale(1.1); opacity: 0.3; }
+}
+
+@keyframes particle-drift-2 {
+  0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.4; }
+  50% { transform: translateY(6px) translateX(-5px) scale(0.9); opacity: 0.6; }
+}
+
+@keyframes particle-drift-3 {
+  0%, 100% { transform: translateY(0) translateX(0) scale(1.1); opacity: 0.35; }
+  50% { transform: translateY(-5px) translateX(-4px) scale(0.85); opacity: 0.55; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.25); }
+}
+
+.animate-float-slow { animation: float-slow 12s ease-in-out infinite; }
+.animate-float-medium { animation: float-medium 10s ease-in-out infinite; }
+.animate-float-fast { animation: float-fast 8s ease-in-out infinite; }
+.animate-particle-1 { animation: particle-drift-1 14s ease-in-out infinite; }
+.animate-particle-2 { animation: particle-drift-2 16s ease-in-out infinite; }
+.animate-particle-3 { animation: particle-drift-3 12s ease-in-out infinite; }
+.animate-shake { animation: shake 0.5s ease-in-out; }
+.animate-fade-up { animation: fade-up 0.6s ease-out both; }
+.animate-slide-in { animation: slide-in-right 0.5s ease-out both; }
+.animate-hero-float { animation: hero-float 6s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 4s ease-in-out infinite; }
+
+/* Page enter transition */
+.animate-page-enter {
+  animation: page-enter 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Form switch transition */
+.animate-form-switch {
+  animation: form-switch 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes form-switch {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Stagger children for list animations */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
+
+/* ==========================================
+   Glassmorphism Utilities
+   ========================================== */
+
+.glass {
+  backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.glass-dark {
+  backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* ==========================================
+   Custom Component Styles
+   ========================================== */
+
+.gradient-text {
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sidebar-link {
+  @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200;
+}
+
+.sidebar-link-active {
+  @apply bg-blue-50 text-blue-700 shadow-sm;
+}
+
+.sidebar-link-inactive {
+  @apply text-gray-500 hover:bg-gray-50 hover:text-gray-700;
+}
+
+/* Premium card style */
+.card {
+  @apply bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300;
+}
+
+.card-header {
+  @apply px-6 py-4 border-b border-gray-50;
+}
+
+.card-body {
+  @apply p-6;
+}
+
+/* Stat card gradient accents */
+.stat-accent-blue { border-left: 4px solid #3b82f6; }
+.stat-accent-green { border-left: 4px solid #10b981; }
+.stat-accent-amber { border-left: 4px solid #f59e0b; }
+.stat-accent-teal { border-left: 4px solid #14b8a6; }
+.stat-accent-red { border-left: 4px solid #ef4444; }
+
+/* Table improvements */
+.premium-table {
+  @apply min-w-full;
+}
+.premium-table thead {
+  @apply bg-gray-50/80;
+}
+.premium-table th {
+  @apply px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider;
+}
+.premium-table td {
+  @apply px-5 py-4 text-sm;
+}
+.premium-table tbody tr {
+  @apply border-b border-gray-50 hover:bg-blue-50/30 transition-colors;
+}
