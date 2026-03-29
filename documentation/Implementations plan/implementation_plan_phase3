@@ -1,0 +1,39 @@
+# Phase 3: Analytics Dashboard UI Overhaul
+
+With the backend Advanced Utilization Engine fully operational, we will now transform the `AnalyticsView.tsx` from a simple diagnostic page into a high-impact institutional audit dashboard. This UI will leverage the new `/api/advanced-analytics` REST endpoints.
+
+## User Review Required
+
+> [!IMPORTANT]  
+> We will completely replace the old `AnalyticsView.tsx` content. Are there any specific metrics from the *old* diagnostic view (e.g. "Trigger Troubleshooting") that you still want to keep in the new dashboard, or should we fully commit to the new Advanced Analytics design?
+
+## Proposed Changes
+
+### `src/components/AnalyticsView.tsx`
+
+We will completely rewrite this file using a new modular layout strategy:
+
+#### 1. Hero Summary (System Efficiency)
+*   Top-level metric card displaying the `SystemEfficiencyScore` (0-100) prominently, styled with conditional colors (e.g., Emerald for > 80, Amber for 50-80, Red for < 50).
+*   A summary statement ("Highly Efficient", "Critical Intervention Needed", etc.).
+
+#### 2. Actionable Intelligence Alerts (Signals)
+*   A dedicated notification feed panel mapping `ActionableAnalyticsSignals`.
+*   Each signal mapped to a `lucide-react` icon and styled based on `severity_score` (10 = Red glowing alert, 5-7 = Warning).
+*   Alert formats: `UNDERUTILIZED_ROOM`, `OVERCROWDED_ROOM`, `PEAK_CONGESTION`.
+
+#### 3. Spatial & Capacity Insights (Mismatches & Wasted Seats)
+*   **Capacity Mismatch Board**: A split grid displaying top "Over-allocated" (Rooms too big) and "Under-allocated" (Overcrowded) classrooms.
+*   **Trapped Capacity Visualizer**: A specialized data table showing exactly *where* seats are being wasted within actively scheduled rooms (`WastedCapacityView`).
+
+#### 4. Temporal Stress Index (Heatmap / Bar Chart)
+*   A visual representation (using Tailwind flex grids to simulate a rudimentary heatmap or bar chart) showing `stress_ratio_percent` across the different days and time slots (`TemporalStressIndex`). This instantly shows the institution's bottleneck hours.
+
+### `src/index.css` & Extensibility
+*   Create new CSS animation classes specifically for the Dashboard Alerts (e.g., `animate-pulse-red` for severe congestion alerts) to maintain the premium dashboard aesthetic.
+
+## Verification Plan
+### Manual Verification
+1.  **Mounting/Rendering**: Visit the `/app/analytics` route. Ensure the page resolves the new API endpoints without crashing.
+2.  **Alert Integrity**: Verify the Actionable Signals feed correctly renders the "Overcrowded" test cases we know exist in the mock SQL data.
+3.  **UI Consistency**: Ensure the new Analytics dashboard shares the visual language (glassmorphism, gradients, Inter font) introduced in the Auth/Landing implementations.

@@ -149,3 +149,49 @@ export const fetchTrappedCapacity = async () => {
     if (!res.ok) throw new Error('Failed to fetch trapped capacity');
     return res.json();
 };
+
+// ==========================================
+// Advanced Analytics Extensions
+// ==========================================
+
+export const fetchUnifiedUtilization = async () => {
+    const res = await fetch(`${API_BASE_URL}/advanced-analytics/unified-utilization`);
+    if (!res.ok) throw new Error('Failed to fetch unified utilization');
+    return res.json();
+};
+
+export const fetchWastedCapacity = async () => {
+    const res = await fetch(`${API_BASE_URL}/advanced-analytics/wasted-capacity`);
+    if (!res.ok) throw new Error('Failed to fetch wasted capacity');
+    return res.json();
+};
+
+export const fetchTemporalStress = async () => {
+    const res = await fetch(`${API_BASE_URL}/advanced-analytics/temporal-stress`);
+    if (!res.ok) throw new Error('Failed to fetch temporal stress index');
+    return res.json();
+};
+
+export const fetchUtilizationImbalance = async () => {
+    const res = await fetch(`${API_BASE_URL}/advanced-analytics/imbalance`);
+    if (!res.ok) throw new Error('Failed to fetch utilization imbalance');
+    return res.json();
+};
+
+export const fetchCapacityMismatch = async () => {
+    const res = await fetch(`${API_BASE_URL}/advanced-analytics/mismatch`);
+    if (!res.ok) throw new Error('Failed to fetch capacity mismatch');
+    return res.json();
+};
+
+export const fetchActionableSignals = async () => {
+    const res = await fetch(`${API_BASE_URL}/advanced-analytics/signals`);
+    if (!res.ok) throw new Error('Failed to fetch actionable signals');
+    return res.json();
+};
+
+export const fetchEfficiencyScore = async () => {
+    const res = await fetch(`${API_BASE_URL}/advanced-analytics/efficiency-score`);
+    if (!res.ok) throw new Error('Failed to fetch system efficiency score');
+    return res.json();
+};

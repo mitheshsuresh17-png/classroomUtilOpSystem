@@ -88,7 +88,16 @@ app.post('/api/schedules', async (req, res) => {
 // Room Utilization Analysis (View)
 app.get('/api/reports/utilization', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM View_Room_Utilization');
+    const [rows] = await db.query(`
+      SELECT 
+        v.room_number, 
+        r.room_type, 
+        v.capacity, 
+        v.slots_used,
+        get_utilization_percent(r.room_id) AS utilization_percentage
+      FROM View_Room_Utilization v
+      JOIN Room r ON v.room_number = r.room_number
+    `);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -256,6 +265,74 @@ app.get('/api/analytics/trapped-capacity', async (req, res) => {
     
     connection.release();
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ==========================================
+// Advanced Analytics Extensions
+// ==========================================
+
+app.get('/api/advanced-analytics/unified-utilization', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM UnifiedUtilizationView ORDER BY day_of_week');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/advanced-analytics/wasted-capacity', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM WastedCapacityView ORDER BY trapped_capacity DESC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/advanced-analytics/temporal-stress', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM TemporalStressIndex ORDER BY day_of_week, start_time');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/advanced-analytics/imbalance', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM UtilizationImbalance ORDER BY day_of_week');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/advanced-analytics/mismatch', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM CapacityMismatchAnalysis ORDER BY fill_percentage DESC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/advanced-analytics/signals', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM ActionableAnalyticsSignals ORDER BY severity_score DESC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/advanced-analytics/efficiency-score', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT calculate_system_efficiency_score() AS efficiency_score');
+    res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
