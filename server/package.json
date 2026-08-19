@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "db:reset": "node reset_db.cjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
