@@ -33,7 +33,7 @@ export default function LandingPage() {
               onClick={() => navigate(isAuthenticated ? '/app' : '/auth')}
               className="px-5 py-2.5 bg-white text-gray-800 text-sm font-semibold rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-300"
             >
-              {isAuthenticated ? 'Go to Dashboard' : 'Start for Free'}
+              {isAuthenticated ? 'Go to Dashboard' : 'Sign In'}
             </button>
           </div>
         </div>
@@ -74,7 +74,7 @@ export default function LandingPage() {
               className="inline-flex items-center gap-2 px-7 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 group"
             >
               <LayoutDashboard className="w-4 h-4" />
-              {isAuthenticated ? 'Open Dashboard' : 'Get Started Free'}
+              {isAuthenticated ? 'Open Dashboard' : 'Get Started'}
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </button>
             <a
@@ -105,17 +105,17 @@ export default function LandingPage() {
               <div className="p-6 md:p-8">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   {[
-                    { label: 'Total Rooms', value: '12', icon: Building2, color: 'blue' },
-                    { label: 'Schedules', value: '48', icon: Calendar, color: 'green' },
-                    { label: 'Free Rooms', value: '3', icon: LayoutDashboard, color: 'teal' },
-                    { label: 'Analytics', value: '7', icon: BarChart3, color: 'indigo' },
+                    { label: 'Room Directory', value: 'Rooms', icon: Building2, color: 'blue' },
+                    { label: 'Schedule Grid', value: 'Schedules', icon: Calendar, color: 'green' },
+                    { label: 'Batch Manager', value: 'Batches', icon: LayoutDashboard, color: 'teal' },
+                    { label: 'Utilization', value: 'Analytics', icon: BarChart3, color: 'indigo' },
                   ].map((stat, i) => (
                     <div key={i} className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-lg bg-${stat.color}-50 flex items-center justify-center`}>
                         <stat.icon className={`w-5 h-5 text-${stat.color}-500`} />
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-gray-800">{stat.value}</div>
+                        <div className="text-lg font-bold text-gray-800">{stat.value}</div>
                         <div className="text-xs text-gray-400">{stat.label}</div>
                       </div>
                     </div>

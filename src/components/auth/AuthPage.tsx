@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Mail, Lock, User, ArrowRight, ArrowLeft, Star, Building2, GraduationCap, BookOpen, Users, Zap, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, ArrowLeft, Building2, GraduationCap, BookOpen, Users, Zap, Sparkles } from 'lucide-react';
 
-const reviews = [
-  { name: 'SRM University', role: 'Chennai, TN', text: '"CLUS transformed how we manage 200+ classrooms."', rating: 5, color: 'from-blue-500 to-indigo-500' },
-  { name: 'VIT Vellore', role: 'Vellore, TN', text: '"Scheduling conflicts dropped by 80%."', rating: 5, color: 'from-sky-500 to-blue-500' },
-  { name: 'Anna University', role: 'Chennai, TN', text: '"Real-time utilization insights changed everything."', rating: 4, color: 'from-indigo-500 to-violet-500' },
-  { name: 'IIT Madras', role: 'Chennai, TN', text: '"Clean UI, powerful SQL analytics under the hood."', rating: 5, color: 'from-cyan-500 to-sky-500' },
-  { name: 'PSG Tech', role: 'Coimbatore, TN', text: '"Lab allocation is now fully automated."', rating: 5, color: 'from-blue-600 to-indigo-600' },
+const features = [
+  { label: 'Conflict-Free Scheduling', text: 'Database-enforced double-booking prevention', color: 'from-blue-500 to-indigo-500' },
+  { label: 'Utilization Analytics', text: 'Real-time room and seat utilization tracking', color: 'from-sky-500 to-blue-500' },
+  { label: 'Capacity Matching', text: 'Automatic batch-to-room capacity validation', color: 'from-indigo-500 to-violet-500' },
+  { label: 'Temporal Insights', text: 'Identify peak congestion and underused periods', color: 'from-cyan-500 to-sky-500' },
+  { label: 'Infrastructure Audit', text: 'Wasted capacity and mismatch detection', color: 'from-blue-600 to-indigo-600' },
 ];
 
-// 2D scattered positions for review cards (top%, left%)
-const reviewPositions = [
+const featurePositions = [
   { top: '6%', left: '4%', anim: 'animate-float-slow' },
   { top: '18%', left: '52%', anim: 'animate-float-medium' },
   { top: '40%', left: '8%', anim: 'animate-float-fast' },
@@ -79,15 +78,15 @@ export default function AuthPage() {
           <Users className="w-4 h-4 text-white/50" />
         </div>
 
-        {/* Floating stat badges */}
+        {/* Floating feature badges */}
         <div className="absolute top-[30%] right-[6%] bg-white/12 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/10 animate-float-medium">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
               <Building2 className="w-4 h-4 text-white" />
             </div>
             <div>
-              <div className="text-lg font-bold text-white">500+</div>
-              <div className="text-[10px] text-blue-200/70 font-medium">Classrooms Managed</div>
+              <div className="text-sm font-bold text-white">Room Scheduling</div>
+              <div className="text-[10px] text-blue-200/70 font-medium">Classrooms, Labs & Halls</div>
             </div>
           </div>
         </div>
@@ -98,46 +97,39 @@ export default function AuthPage() {
               <Zap className="w-4 h-4 text-white" />
             </div>
             <div>
-              <div className="text-lg font-bold text-white">98%</div>
-              <div className="text-[10px] text-blue-200/70 font-medium">Uptime Reliability</div>
+              <div className="text-sm font-bold text-white">SQL-Powered</div>
+              <div className="text-[10px] text-blue-200/70 font-medium">Analytics & Integrity</div>
             </div>
           </div>
         </div>
 
-        {/* Title in the center area */}
+        {/* Branding tagline */}
         <div className="absolute bottom-[6%] left-[35%] right-[5%]">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-3 py-1 mb-2">
             <Sparkles className="w-3 h-3 text-sky-300" />
-            <span className="text-[11px] font-medium text-sky-200">Trusted by 50+ Institutions</span>
+            <span className="text-[11px] font-medium text-sky-200">Classroom & Lab Utilization System</span>
           </div>
         </div>
 
-        {/* ===== Scattered Review Cards across 2D plane ===== */}
-        {reviews.map((review, i) => (
+        {/* ===== Scattered Feature Cards across 2D plane ===== */}
+        {features.map((feature, i) => (
           <div
             key={i}
-            className={`absolute ${reviewPositions[i].anim}`}
+            className={`absolute ${featurePositions[i].anim}`}
             style={{
-              top: reviewPositions[i].top,
-              left: reviewPositions[i].left,
+              top: featurePositions[i].top,
+              left: featurePositions[i].left,
               maxWidth: '240px',
             }}
           >
             <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-3.5 border border-white/15 hover:bg-white/15 transition-all duration-500 cursor-default group">
               <div className="flex items-start gap-2.5">
-                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${review.color} flex items-center justify-center shrink-0 shadow-lg group-hover:scale-105 transition-transform duration-500`}>
-                  <span className="text-white font-bold text-[11px]">{review.name[0]}</span>
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${feature.color} flex items-center justify-center shrink-0 shadow-lg group-hover:scale-105 transition-transform duration-500`}>
+                  <span className="text-white font-bold text-[11px]">{feature.label[0]}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <h4 className="text-[12px] font-semibold text-white/90 truncate">{review.name}</h4>
-                    <div className="flex gap-px shrink-0 ml-1.5">
-                      {Array.from({ length: review.rating }).map((_, j) => (
-                        <Star key={j} className="w-2 h-2 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-blue-200/60 leading-relaxed">{review.text}</p>
+                  <h4 className="text-[12px] font-semibold text-white/90 truncate">{feature.label}</h4>
+                  <p className="text-[10px] text-blue-200/60 leading-relaxed">{feature.text}</p>
                 </div>
               </div>
             </div>

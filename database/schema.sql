@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS Resource (
     resource_name VARCHAR(100) UNIQUE NOT NULL
 );
 
-INSERT IGNORE INTO Resource (resource_name) VALUES ('Projector'), ('AC'), ('Smart Board'), ('High-End PCs');
+INSERT IGNORE INTO Resource (resource_name) VALUES ('Projector'), ('Air Conditioner'), ('Smart Board'), ('High-End PCs'), ('Fan');
 
 -- Intersection table to handle MVD (Many-to-Many between Room and Resource)
 CREATE TABLE IF NOT EXISTS Room_Resource (
@@ -327,6 +327,15 @@ JOIN Room r ON cs.room_number = r.room_number
 JOIN Batch b ON cs.batch_id = b.batch_id
 JOIN Time_Slot ts ON cs.slot_id = ts.slot_id
 WHERE b.student_count > r.capacity OR (r.capacity - b.student_count) > 30;
+
+-- View: Utilization Imbalance (class distribution across days)
+CREATE OR REPLACE VIEW UtilizationImbalance AS
+SELECT 
+    ts.day_of_week,
+    COUNT(cs.schedule_id) as total_classes
+FROM Course_Schedule cs
+JOIN Time_Slot ts ON cs.slot_id = ts.slot_id
+GROUP BY ts.day_of_week;
 
 -- -----------------------------------------------------
 -- Efficiency Scoring System

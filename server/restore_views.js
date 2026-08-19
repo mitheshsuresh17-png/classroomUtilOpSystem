@@ -18,15 +18,15 @@ try {
         JOIN course c ON cs.course_id = c.course_id 
         JOIN department d ON c.dept_id = d.dept_id 
         JOIN batch b ON cs.batch_id = b.batch_id 
-        JOIN room r ON cs.room_id = r.room_id 
+        JOIN room r ON cs.room_number = r.room_number 
         JOIN time_slot ts ON cs.slot_id = ts.slot_id
     `);
     await db.query(`
         CREATE OR REPLACE VIEW view_room_utilization AS 
         SELECT r.room_number, r.capacity, COUNT(cs.schedule_id) as slots_used 
         FROM room r 
-        LEFT JOIN course_schedule cs ON r.room_id = cs.room_id 
-        GROUP BY r.room_id, r.room_number, r.capacity
+        LEFT JOIN course_schedule cs ON r.room_number = cs.room_number 
+        GROUP BY r.room_number, r.capacity
     `);
     console.log('Views Created.');
 } catch(e) {

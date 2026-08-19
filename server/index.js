@@ -266,7 +266,7 @@ app.get('/api/analytics/room-saturation', async (req, res) => {
           SELECT MAX(b.student_count) 
           FROM Course_Schedule cs 
           JOIN Batch b ON cs.batch_id = b.batch_id 
-          WHERE cs.room_id = r.room_id
+          WHERE cs.room_number = r.room_number
       ) >= r.capacity * ?;
     `, [minSaturation]);
     res.json(rows);
@@ -314,7 +314,7 @@ app.get('/api/analytics/trigger-troubleshooting', async (req, res) => {
 app.get('/api/analytics/infrastructure-sorting', async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT room_number, room_type, get_utilization_percent(room_id) AS current_util_percent 
+      SELECT room_number, room_type, get_utilization_percent(room_number) AS current_util_percent 
       FROM Room 
       ORDER BY current_util_percent DESC;
     `);
@@ -326,9 +326,10 @@ app.get('/api/analytics/infrastructure-sorting', async (req, res) => {
 
 // 8. Trapped Capacity (Extracting Intelligence from Cursor Temp Table)
 app.get('/api/analytics/trapped-capacity', async (req, res) => {
+  let connection;
   try {
     // We MUST execute the procedural cursor first in the same connection session!
-    const connection = await db.getConnection();
+    connection = await db.getConnection();
     
     // Step 1: Execute Cursor to generate Temp_Room_Report natively
     await connection.query('CALL evaluate_room_usage()');
@@ -342,10 +343,11 @@ app.get('/api/analytics/trapped-capacity', async (req, res) => {
       GROUP BY t.status;
     `);
     
-    connection.release();
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
@@ -356,7 +358,7 @@ app.get('/api/analytics/trapped-capacity', async (req, res) => {
 
 app.get('/api/advanced-analytics/unified-utilization', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM UnifiedUtilizationView ORDER BY day_of_week');
+    const [rows] = await db.query('SELECT * FROM UnifiedUtilizationView ORDER BY room_number');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -365,7 +367,7 @@ app.get('/api/advanced-analytics/unified-utilization', async (req, res) => {
 
 app.get('/api/advanced-analytics/wasted-capacity', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM WastedCapacityView ORDER BY trapped_capacity DESC');
+    const [rows] = await db.query('SELECT * FROM WastedCapacityView ORDER BY wasted_seats DESC');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -392,7 +394,7 @@ app.get('/api/advanced-analytics/imbalance', async (req, res) => {
 
 app.get('/api/advanced-analytics/mismatch', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM CapacityMismatchAnalysis ORDER BY fill_percentage DESC');
+    const [rows] = await db.query('SELECT * FROM CapacityMismatchAnalysis ORDER BY penalty_score ASC');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

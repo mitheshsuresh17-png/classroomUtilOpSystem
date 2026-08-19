@@ -39,7 +39,7 @@ export default function RoomList() {
             setSuccessMsg('Room created successfully!');
             setForm({ room_number: '', room_type: 'Classroom', capacity: '' });
             setShowForm(false);
-            loadRooms();
+            loadData();
         } catch (err: any) {
             setErrorMsg(err.message || 'An error occurred');
         }
@@ -50,7 +50,7 @@ export default function RoomList() {
         if (!confirm('Are you sure you want to delete this room? This will also delete any schedules using this room.')) return;
         try {
             await deleteRoom(id);
-            loadRooms();
+            loadData();
         } catch (err: any) {
             alert(err.message || 'Failed to delete room');
         }
