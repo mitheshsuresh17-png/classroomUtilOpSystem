@@ -3,18 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Dashboard from './Dashboard';
 import RoomList from './RoomList';
+import BatchList from './BatchList';
 import ScheduleView from './ScheduleView';
 import AnalyticsView from './AnalyticsView';
 import {
   LayoutDashboard, Calendar, Building2, BarChart3,
-  LogOut, User, ChevronDown, Menu, X
+  LogOut, User, Users, ChevronDown, Menu, X
 } from 'lucide-react';
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'schedules', label: 'Schedules', icon: Calendar },
   { id: 'rooms', label: 'Rooms', icon: Building2 },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'batches', label: 'Batches', icon: Users },
+  // { id: 'analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
 export default function DashboardLayout() {
@@ -167,6 +169,7 @@ export default function DashboardLayout() {
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'schedules' && <ScheduleView />}
         {activeTab === 'rooms' && <RoomList />}
+        {activeTab === 'batches' && <BatchList />}
         {activeTab === 'analytics' && <AnalyticsView />}
       </main>
     </div>

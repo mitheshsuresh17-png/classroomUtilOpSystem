@@ -1,11 +1,11 @@
 import { createPool } from 'mysql2/promise';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
 
-// Create the connection pool.
-// Ensure your .env file in the server/ directory contains these variables:
-// DB_HOST, DB_USER, DB_PASSWORD, DB_NAME (default: classroom_utilization_db)
 const pool = createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',

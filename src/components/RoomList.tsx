@@ -1,17 +1,21 @@
-import { useEffect, useState } from 'react';
-import { fetchRooms, fetchFreeRooms } from '../lib/api';
-import { Filter, Search, Building2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { fetchRooms, fetchFreeRooms, fetchTimeSlots, fetchSchedules, createRoom, deleteRoom } from '../lib/api';
+import { Filter, Search, Building2, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import TimeSlotGrid, { TimeSlot } from './TimeSlotGrid';
 
 interface Room {
-    room_id: string;
     room_number: string;
     room_type: string;
     capacity: number;
+    resources: string | null;
 }
 
 export default function RoomList() {
     const [rooms, setRooms] = useState<Room[]>([]);
+    const [slots, setSlots] = useState<TimeSlot[]>([]);
+    const [schedules, setSchedules] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
 
     // Filters
     const [searchQuery, setSearchQuery] = useState('');
@@ -20,17 +24,55 @@ export default function RoomList() {
     const [maxCap, setMaxCap] = useState('');
     const [showFreeOnly, setShowFreeOnly] = useState(false);
 
+    // Form
+    const [form, setForm] = useState({ room_number: '', room_type: 'Classroom', capacity: '' });
+    const [showForm, setShowForm] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
+
+    const handleCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setErrorMsg('');
+        setSuccessMsg('');
+        try {
+            await createRoom({ ...form, capacity: parseInt(form.capacity) });
+            setSuccessMsg('Room created successfully!');
+            setForm({ room_number: '', room_type: 'Classroom', capacity: '' });
+            setShowForm(false);
+            loadRooms();
+        } catch (err: any) {
+            setErrorMsg(err.message || 'An error occurred');
+        }
+    };
+
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation(); // prevent expanding the row
+        if (!confirm('Are you sure you want to delete this room? This will also delete any schedules using this room.')) return;
+        try {
+            await deleteRoom(id);
+            loadRooms();
+        } catch (err: any) {
+            alert(err.message || 'Failed to delete room');
+        }
+    };
+
     useEffect(() => {
-        loadRooms();
+        loadData();
     }, [showFreeOnly]);
 
-    const loadRooms = async () => {
+    const loadData = async () => {
         try {
             setLoading(true);
-            const data = showFreeOnly ? await fetchFreeRooms() : await fetchRooms();
-            setRooms(data);
-        } catch (error) {
-            console.error('Error fetching rooms:', error);
+            const [rData, sData, slotData] = await Promise.all([
+                showFreeOnly ? fetchFreeRooms() : fetchRooms(),
+                fetchSchedules(),
+                fetchTimeSlots()
+            ]);
+            setRooms(rData);
+            setSchedules(sData);
+            setSlots(slotData || []);
+        } catch (err) {
+            console.error('Failed to load data:', err);
         } finally {
             setLoading(false);
         }
@@ -46,6 +88,47 @@ export default function RoomList() {
 
     return (
         <div className="space-y-5">
+            {/* Add New Header / Form */}
+            <div className="flex items-center justify-between">
+                <button 
+                    onClick={() => setShowForm(!showForm)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
+                >
+                    <Plus className={`w-4 h-4 transition-transform ${showForm ? 'rotate-45' : ''}`} />
+                    {showForm ? 'Cancel' : 'Add New Room'}
+                </button>
+            </div>
+
+            {showForm && (
+                <div className="card p-5 animate-fade-up">
+                    <h2 className="text-lg font-bold text-gray-800 mb-4">Create New Room</h2>
+                    {errorMsg && <div className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm">{errorMsg}</div>}
+                    {successMsg && <div className="mb-4 bg-emerald-50 text-emerald-600 px-4 py-3 rounded-xl text-sm">{successMsg}</div>}
+                    
+                    <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Room Number (Primary Key)</label>
+                            <input required type="text" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm uppercase" value={form.room_number} onChange={e => setForm({...form, room_number: e.target.value.toUpperCase()})} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Room Type</label>
+                            <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.room_type} onChange={e => setForm({...form, room_type: e.target.value})}>
+                                <option value="Classroom">Classroom</option>
+                                <option value="Lab">Lab</option>
+                                <option value="Lecture Hall">Lecture Hall</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Capacity</label>
+                            <input required type="number" min="1" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.capacity} onChange={e => setForm({...form, capacity: e.target.value})} />
+                        </div>
+                        <div className="md:col-span-3 mt-2">
+                            <button type="submit" className="px-5 py-2.5 bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-md">Create Room</button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
             {/* Filters Card */}
             <div className="card p-5 animate-fade-up">
                 <div className="flex items-center gap-2 mb-4">
@@ -129,20 +212,61 @@ export default function RoomList() {
                                     <th>Room Number</th>
                                     <th>Type</th>
                                     <th>Capacity</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredRooms.length > 0 ? filteredRooms.map((room, index) => (
-                                    <tr key={index}>
-                                        <td className="font-semibold text-gray-900">{room.room_number}</td>
-                                        <td>
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600">
-                                                {room.room_type}
-                                            </span>
-                                        </td>
-                                        <td className="font-medium text-gray-600">{room.capacity} seats</td>
-                                    </tr>
-                                )) : (
+                                {filteredRooms.length > 0 ? filteredRooms.map((room, index) => {
+                                    const isExpanded = expandedRoomId === room.room_number;
+                                    
+                                    const roomSchedules = schedules.filter(s => s.room_number === room.room_number);
+                                    const bookedSlotIds = roomSchedules.map(sched => {
+                                        const matchingSlot = slots.find(s => s.day_of_week === sched.day_of_week && s.start_time === sched.start_time);
+                                        return matchingSlot ? matchingSlot.slot_id.toString() : null;
+                                    }).filter(Boolean) as string[];
+
+                                    return (
+                                        <React.Fragment key={index}>
+                                            <tr 
+                                                className="cursor-pointer hover:bg-blue-50/50 transition-colors"
+                                                onClick={() => setExpandedRoomId(isExpanded ? null : room.room_number)}
+                                            >
+                                                <td className="font-semibold text-gray-900 flex items-center gap-2">
+                                                    {isExpanded ? <ChevronUp className="w-4 h-4 text-blue-500" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                                                    {room.room_number}
+                                                </td>
+                                                <td>
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600">
+                                                        {room.room_type}
+                                                    </span>
+                                                </td>
+                                                <td className="font-medium text-gray-600">{room.capacity} seats</td>
+                                                <td className="text-right">
+                                                    <button 
+                                                        onClick={(e) => handleDelete(e, room.room_number)}
+                                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Delete Room"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {isExpanded && (
+                                                <tr className="bg-blue-50/20">
+                                                    <td colSpan={4} className="p-4 border-b border-gray-100">
+                                                        <div className="animate-fade-up">
+                                                            <TimeSlotGrid 
+                                                                mode="view" 
+                                                                slots={slots} 
+                                                                bookedSlotIds={bookedSlotIds} 
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                }) : (
                                     <tr>
                                         <td colSpan={3} className="text-center py-8 text-gray-400">
                                             No rooms match your filter criteria.

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { 
     fetchSchedules, fetchCourses, fetchBatches, fetchRooms, 
-    fetchTimeSlots, scheduleRoom, fetchEmptySlots, fetchUnscheduledCourses 
+    fetchTimeSlots, scheduleRoom, fetchEmptySlots, fetchUnscheduledCourses,
+    deleteSchedule
 } from '../lib/api';
-import { Filter, Search, ListTodo, Plus, Calendar } from 'lucide-react';
+import { Filter, Search, ListTodo, Plus, Calendar, Trash2 } from 'lucide-react';
+import TimeSlotGrid from './TimeSlotGrid';
 
 interface Schedule {
     schedule_id: string;
@@ -19,7 +21,7 @@ interface Schedule {
 
 interface Course { course_id: string; course_name: string; course_code: string; }
 interface Batch { batch_id: string; year_of_study: number; section: string; student_count: number; }
-interface Room { room_id: string; room_number: string; room_type: string; capacity: number; }
+interface Room { room_number: string; room_type: string; capacity: number; }
 interface TimeSlot { slot_id: string; day_of_week: string; start_time: string; end_time: string; }
 
 export default function ScheduleView() {
@@ -35,12 +37,30 @@ export default function ScheduleView() {
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
-    const [form, setForm] = useState({ course_id: '', batch_id: '', room_id: '', slot_id: '' });
+    const [form, setForm] = useState({ course_id: '', batch_id: '', room_number: '', slot_id: '' });
+    const [showSlotPicker, setShowSlotPicker] = useState(false);
 
     const [searchCourse, setSearchCourse] = useState('');
     const [filterDay, setFilterDay] = useState('');
     const [showEmptySlots, setShowEmptySlots] = useState(false);
-    const [showUnscheduled, setShowUnscheduled] = useState(false);
+
+    const getBookedSlotIdsForRoom = (roomNumber: string) => {
+        if (!roomNumber) return [];
+        const selectedRoom = rooms.find(r => r.room_number === roomNumber);
+        if (!selectedRoom) return [];
+
+        const roomSchedules = schedules.filter(s => s.room_number === selectedRoom.room_number);
+        
+        const bookedIds = roomSchedules.map(sched => {
+            const matchingSlot = slots.find(slot => 
+                slot.day_of_week === sched.day_of_week && 
+                slot.start_time === sched.start_time
+            );
+            return matchingSlot ? matchingSlot.slot_id.toString() : null;
+        }).filter(Boolean) as string[];
+
+        return bookedIds;
+    };
 
     useEffect(() => {
         loadData();
@@ -80,6 +100,16 @@ export default function ScheduleView() {
         }
     };
 
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this schedule?')) return;
+        try {
+            await deleteSchedule(id);
+            loadData();
+        } catch (err: any) {
+            alert(err.message || 'Failed to delete schedule');
+        }
+    };
+
     const combinedSchedules = showEmptySlots ? [...schedules, ...emptySlotsData] : schedules;
     const filteredSchedules = combinedSchedules.filter(s => {
         const matchesCourse = filterDay === 'Empty' ? true : 
@@ -101,7 +131,7 @@ export default function ScheduleView() {
     return (
         <div className="space-y-5">
             {/* Add New Schedule */}
-            <div className="card p-5 animate-fade-up">
+            <div className="card p-5 animate-fade-up relative z-50">
                 <div className="flex items-center gap-2 mb-5">
                     <div className="p-2 bg-blue-50 rounded-lg">
                         <Plus className="w-4 h-4 text-blue-600" />
@@ -137,17 +167,41 @@ export default function ScheduleView() {
                     </div>
                     <div>
                         <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Room</label>
-                        <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={form.room_id} onChange={(e) => setForm({...form, room_id: e.target.value})}>
+                        <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={form.room_number} onChange={(e) => setForm({...form, room_number: e.target.value})}>
                             <option value="">Select Room</option>
-                            {rooms.map(r => <option key={r.room_id} value={r.room_id}>{r.room_number} (Cap: {r.capacity})</option>)}
+                            {rooms.map(r => <option key={r.room_number} value={r.room_number}>{r.room_number} (Cap: {r.capacity})</option>)}
                         </select>
                     </div>
-                    <div>
+                    <div className="relative">
                         <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Time Slot</label>
-                        <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={form.slot_id} onChange={(e) => setForm({...form, slot_id: e.target.value})}>
-                            <option value="">Select Slot</option>
-                            {slots.map(s => <option key={s.slot_id} value={s.slot_id}>Day {s.day_of_week} ({s.start_time.substring(0,5)} - {s.end_time.substring(0,5)})</option>)}
-                        </select>
+                        <button 
+                            type="button" 
+                            onClick={() => setShowSlotPicker(!showSlotPicker)}
+                            className="w-full text-left border border-gray-200 bg-white rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        >
+                            {form.slot_id ? (() => {
+                                const s = slots.find(slot => slot.slot_id.toString() === form.slot_id);
+                                return s ? `Day ${s.day_of_week} (${s.start_time.substring(0,5)})` : 'Select Slot';
+                            })() : 'Select Slot'}
+                        </button>
+
+                        {showSlotPicker && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowSlotPicker(false)}></div>
+                                <div className="absolute z-50 top-full lg:-right-32 mt-2 w-max max-w-[90vw] shadow-2xl rounded-xl animate-fade-up">
+                                    <TimeSlotGrid 
+                                        mode="select" 
+                                        slots={slots} 
+                                        bookedSlotIds={getBookedSlotIdsForRoom(form.room_number)} 
+                                        selectedSlotId={form.slot_id}
+                                        onSelectSlot={(slotId) => {
+                                            setForm({...form, slot_id: slotId});
+                                            setShowSlotPicker(false);
+                                        }}
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
                     <div className="md:col-span-4 mt-1">
                         <button type="submit" className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all">
@@ -167,13 +221,6 @@ export default function ScheduleView() {
                         </div>
                         <h3 className="font-bold text-gray-800">Filter Schedules & Analyze Allocations</h3>
                     </div>
-                    <button 
-                        onClick={() => setShowUnscheduled(!showUnscheduled)}
-                        className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl transition-all ${showUnscheduled ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'}`}
-                    >
-                        <ListTodo size={14} /> 
-                        {showUnscheduled ? 'Hide Unscheduled' : 'View Unscheduled (LEFT JOIN)'}
-                    </button>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -216,35 +263,6 @@ export default function ScheduleView() {
                 </div>
             </div>
 
-            {/* Unscheduled Courses Panel */}
-            {showUnscheduled && (
-                <div className="card border-orange-100 bg-orange-50/30 p-5 animate-fade-up">
-                    <h2 className="text-base font-bold mb-3 text-orange-900 flex items-center gap-2">
-                        <ListTodo className="text-orange-600 w-4 h-4" />
-                        Orphaned Classes
-                        <span className="ml-2 bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-lg font-mono">LEFT JOIN where IS NULL</span>
-                    </h2>
-                    <div className="overflow-auto max-h-56 border border-orange-200 rounded-xl">
-                        <table className="min-w-full text-sm bg-white">
-                            <thead className="bg-orange-50 text-orange-900 sticky top-0">
-                                <tr>
-                                    <th className="px-4 py-3 text-left font-semibold text-xs uppercase">Course Code</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-xs uppercase">Course Name</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-orange-100">
-                                {unscheduledData.length > 0 ? unscheduledData.map((c, i) => (
-                                    <tr key={i} className="hover:bg-orange-50/50">
-                                        <td className="px-4 py-3 font-medium text-orange-700">{c.course_code}</td>
-                                        <td className="px-4 py-3 text-orange-900">{c.course_name}</td>
-                                    </tr>
-                                )) : <tr><td colSpan={2} className="px-4 py-4 text-center text-orange-500 italic">All courses have been scheduled!</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
             {/* Schedule Table */}
             <div className="card animate-fade-up" style={{ animationDelay: '160ms' }}>
                 <div className="card-header flex justify-between items-center">
@@ -262,6 +280,7 @@ export default function ScheduleView() {
                                 <th>Batch</th>
                                 <th>Room</th>
                                 <th>Time</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -279,7 +298,18 @@ export default function ScheduleView() {
                                         </span>
                                     </td>
                                     <td className="text-gray-600">
-                                        Day {s.day_of_week} ({s.start_time.substring(0,5)} — {s.end_time.substring(0,5)})
+                                        Day {s.day_of_week || '?'} ({s.start_time ? s.start_time.substring(0,5) : '--:--'} — {s.end_time ? s.end_time.substring(0,5) : '--:--'})
+                                    </td>
+                                    <td className="text-right">
+                                        {s.schedule_id && s.dept_name !== 'Empty' && (
+                                            <button 
+                                                onClick={() => handleDelete(s.schedule_id)}
+                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Delete Schedule"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

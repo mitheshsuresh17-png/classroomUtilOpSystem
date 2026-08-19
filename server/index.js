@@ -4,7 +4,12 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import db from './db.js';
 
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -19,7 +24,18 @@ app.use(express.json());
 // Get all rooms
 app.get('/api/rooms', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM Room ORDER BY room_id');
+    const [rows] = await db.query(`
+      SELECT 
+        r.room_number, 
+        r.room_type, 
+        r.capacity,
+        GROUP_CONCAT(res.resource_name) as resources
+      FROM Room r
+      LEFT JOIN Room_Resource rr ON r.room_number = rr.room_number
+      LEFT JOIN Resource res ON rr.resource_id = res.resource_id
+      GROUP BY r.room_number
+      ORDER BY r.room_number
+    `);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -68,16 +84,77 @@ app.get('/api/timeslots', async (req, res) => {
 
 // Allocate a Room (Invokes trigger implicitly)
 app.post('/api/schedules', async (req, res) => {
-  const { course_id, batch_id, room_id, slot_id } = req.body;
+  const { course_id, batch_id, room_number, slot_id } = req.body;
   try {
     const [result] = await db.query(
-      'INSERT INTO Course_Schedule (course_id, batch_id, room_id, slot_id) VALUES (?, ?, ?, ?)',
-      [course_id, batch_id, room_id, slot_id]
+      'INSERT INTO Course_Schedule (course_id, batch_id, room_number, slot_id) VALUES (?, ?, ?, ?)',
+      [course_id, batch_id, room_number, slot_id]
     );
     res.status(201).json({ success: true, schedule_id: result.insertId });
   } catch (err) {
     // MySQL trigger errors (like capacity or double booking) will be caught here
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete a Schedule
+app.delete('/api/schedules/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await db.query('DELETE FROM Course_Schedule WHERE schedule_id = ?', [id]);
+    res.json({ success: true, deleted: result.affectedRows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add a Room
+app.post('/api/rooms', async (req, res) => {
+  const { room_number, room_type, capacity } = req.body;
+  try {
+    const [result] = await db.query(
+      'INSERT INTO Room (room_number, room_type, capacity) VALUES (?, ?, ?)',
+      [room_number, room_type, capacity]
+    );
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete a Room
+app.delete('/api/rooms/:room_number', async (req, res) => {
+  const { room_number } = req.params;
+  try {
+    const [result] = await db.query('DELETE FROM Room WHERE room_number = ?', [room_number]);
+    res.json({ success: true, deleted: result.affectedRows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add a Batch
+app.post('/api/batches', async (req, res) => {
+  const { batch_id, year_of_study, section, student_count, dept_id } = req.body;
+  try {
+    const [result] = await db.query(
+      'INSERT INTO Batch (batch_id, year_of_study, section, student_count, dept_id) VALUES (?, ?, ?, ?, ?)',
+      [batch_id, year_of_study, section, student_count, dept_id]
+    );
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete a Batch
+app.delete('/api/batches/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await db.query('DELETE FROM Batch WHERE batch_id = ?', [id]);
+    res.json({ success: true, deleted: result.affectedRows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -94,7 +171,7 @@ app.get('/api/reports/utilization', async (req, res) => {
         r.room_type, 
         v.capacity, 
         v.slots_used,
-        get_utilization_percent(r.room_id) AS utilization_percentage
+        get_utilization_percent(r.room_number) AS utilization_percentage
       FROM View_Room_Utilization v
       JOIN Room r ON v.room_number = r.room_number
     `);
@@ -110,7 +187,7 @@ app.get('/api/reports/free-rooms', async (req, res) => {
     const [rows] = await db.query(`
       SELECT room_number, room_type, capacity 
       FROM Room 
-      WHERE room_id NOT IN (SELECT room_id FROM Course_Schedule)
+      WHERE room_number NOT IN (SELECT room_number FROM Course_Schedule)
     `);
     res.json(rows);
   } catch (err) {
@@ -125,12 +202,14 @@ app.get('/api/reports/empty-slots', async (req, res) => {
       SELECT 
         'Empty' AS dept_name, 'No Course' AS course_name,
         NULL AS year_of_study, NULL AS section,
-        r.room_number, ts.day_of_week, ts.start_time, ts.end_time
+        all_slots.room_number, all_slots.day_of_week, all_slots.start_time, all_slots.end_time
       FROM Course_Schedule cs
-      RIGHT JOIN Time_Slot ts ON cs.slot_id = ts.slot_id
-      RIGHT JOIN Room r ON cs.room_id = r.room_id
+      RIGHT JOIN (
+          SELECT r.room_number, ts.slot_id, ts.day_of_week, ts.start_time, ts.end_time 
+          FROM Room r CROSS JOIN Time_Slot ts
+      ) AS all_slots ON cs.slot_id = all_slots.slot_id AND cs.room_number = all_slots.room_number
       WHERE cs.schedule_id IS NULL
-      ORDER BY ts.day_of_week, ts.start_time, r.room_number;
+      ORDER BY all_slots.day_of_week, all_slots.start_time, all_slots.room_number;
     `);
     res.json(rows);
   } catch (err) {
@@ -400,6 +479,6 @@ app.post('/api/auth/signin', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Classroom Utilization Node.js/Express server running on port ${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Classroom Utilization Node.js/Express server running on port ${port} (exposed to network)`);
 });

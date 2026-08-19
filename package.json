@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "server": "cd server && node index.js",
     "start:all": "npx concurrently \"npm run server\" \"npm run dev\"",
     "build": "vite build",
@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
+    "pdf-parse": "^2.4.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.13.2"

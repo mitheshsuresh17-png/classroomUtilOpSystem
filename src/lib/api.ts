@@ -1,5 +1,5 @@
-// Base URL for the Express API server
-const API_BASE_URL = 'http://localhost:5000/api';
+// Base URL for API calls. Routes through Vite proxy to bypass Windows Firewall for mobile testing.
+const API_BASE_URL = '/api';
 
 // ==========================================
 // Authentication
@@ -60,7 +60,7 @@ export const fetchTimeSlots = async () => {
 interface SchedulePayload {
     course_id: string;
     batch_id: string;
-    room_id: string;
+    room_number: string;
     slot_id: string;
 }
 
@@ -73,6 +73,55 @@ export const scheduleRoom = async (scheduleData: SchedulePayload) => {
     
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to schedule room');
+    return data;
+};
+
+export const deleteSchedule = async (scheduleId: string) => {
+    const res = await fetch(`${API_BASE_URL}/schedules/${scheduleId}`, {
+        method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete schedule');
+    return data;
+};
+
+export const createRoom = async (roomData: any) => {
+    const res = await fetch(`${API_BASE_URL}/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(roomData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create room');
+    return data;
+};
+
+export const createBatch = async (batchData: any) => {
+    const res = await fetch(`${API_BASE_URL}/batches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batchData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create batch');
+    return data;
+};
+
+export const deleteRoom = async (roomId: string) => {
+    const res = await fetch(`${API_BASE_URL}/rooms/${roomId}`, {
+        method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete room');
+    return data;
+};
+
+export const deleteBatch = async (batchId: string) => {
+    const res = await fetch(`${API_BASE_URL}/batches/${batchId}`, {
+        method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete batch');
     return data;
 };
 

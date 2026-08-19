@@ -64,14 +64,12 @@ export default function Dashboard() {
   const statCards = [
     { title: 'Total Rooms', value: stats.totalRooms, icon: <Calendar className="w-5 h-5 text-blue-600" />, accent: 'stat-accent-blue', bg: 'bg-blue-50' },
     { title: 'Total Schedules', value: stats.totalSchedules, icon: <TrendingUp className="w-5 h-5 text-emerald-600" />, accent: 'stat-accent-green', bg: 'bg-emerald-50' },
-    { title: 'Conflicts', value: stats.conflicts, icon: <AlertCircle className="w-5 h-5 text-amber-600" />, accent:  'stat-accent-amber', bg: 'bg-amber-50' },
-    { title: 'Free Rooms', value: stats.freeRooms, icon: <CheckCircle className="w-5 h-5 text-teal-600" />, accent: 'stat-accent-teal', bg: 'bg-teal-50' },
   ];
 
   return (
     <div className="space-y-6">
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
         {statCards.map((card, i) => (
           <div key={i} className={`card p-5 ${card.accent} animate-fade-up`}>
             <div className="flex items-center justify-between">
