@@ -295,14 +295,6 @@ export default function AuthPage() {
         <div className="flex items-center gap-2">
           <img src="/high-resolution-color-logo.png" alt="CLUS Logo" className="h-6 w-auto object-contain" />
           <span className="text-sm font-bold text-gray-700">CLUS</span>
-          <div className="ml-auto flex -space-x-1">
-            {reviews.slice(0, 3).map((r, i) => (
-              <div key={i} className={`w-6 h-6 rounded-full bg-gradient-to-br ${r.color} flex items-center justify-center text-white text-[8px] font-bold border-2 border-white`}>
-                {r.name[0]}
-              </div>
-            ))}
-          </div>
-          <span className="text-[10px] text-gray-400 font-medium">50+ institutions</span>
         </div>
       </div>
     </div>

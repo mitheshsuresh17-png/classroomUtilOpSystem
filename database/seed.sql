@@ -123,11 +123,11 @@ INSERT INTO room_resource (room_number, resource_id) VALUES
 ('LAB1', 5);  -- LAB1 has Smart Board
 
 -- 5. Seed Initial Schedule (Matching Transaction 1 & 5NF Proof)
--- slot_id 1 = Day 1, 08:00; slot_id 14 = Day 2, 11:00; slot_id 27 = Day 3, 14:00
+-- slot_id 1 = Day 1, 08:00 (old 101); slot_id 14 = Day 2, 11:00 (old 105); slot_id 27 = Day 3, 14:00 (old 108)
 INSERT INTO course_schedule (schedule_id, course_id, batch_id, room_number, slot_id) VALUES
-(1, 101, 201, 'UB101', 1),  -- DBMS in UB101, Mon 08:00
-(2, 102, 202, 'UB102', 1),  -- OS in UB102, Mon 08:00
-(3, 103, 203, 'UB201', 1);  -- AI in UB201, Mon 08:00
+(1, 101, 201, 'UB101', 1),   -- DBMS in UB101, Day 1 (Mon) 08:00
+(2, 102, 202, 'UB102', 14),  -- OS in UB102, Day 2 (Tue) 11:00
+(3, 103, 203, 'UB201', 27);  -- AI in UB201, Day 3 (Wed) 14:00
 
 -- Re-enable foreign key checks
 SET FOREIGN_KEY_CHECKS = 1;

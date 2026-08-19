@@ -43,7 +43,7 @@
 | Change | Detail |
 |--------|--------|
 | Full 50-slot time grid (L56-114) | Replaced 3 arbitrary slots (IDs 101, 105, 108) with the complete 5-day × 10-period grid (IDs 1-50, 08:00-17:50) matching `seed_slots.cjs` |
-| Updated schedule slot_id refs (L127-130) | Changed `slot_id` from `101` to `1` (Day 1, 08:00) to match new sequential IDs |
+| Updated schedule slot_id refs (L127-130) | Remapped slot IDs: `101` → `1` (Day 1 Mon, 08:00), `105` → `14` (Day 2 Tue, 11:00), `108` → `27` (Day 3 Wed, 14:00) |
 | Resource comment fix (L119) | `-- UB101 has AC` → `-- UB101 has Air Conditioner` |
 
 ### 7. [src/components/auth/AuthPage.tsx](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/src/components/auth/AuthPage.tsx)
