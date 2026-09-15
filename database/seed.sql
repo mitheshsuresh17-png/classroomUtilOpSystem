@@ -122,18 +122,18 @@ INSERT INTO room_resource (room_number, resource_id) VALUES
 ('LAB1', 3),  -- LAB1 has High-End PCs
 ('LAB1', 5);  -- LAB1 has Smart Board
 
--- 5. Seed Initial Schedule (Matching Transaction 1 & 5NF Proof)
--- slot_id 1 = Day 1, 08:00 (old 101); slot_id 14 = Day 2, 11:00 (old 105); slot_id 27 = Day 3, 14:00 (old 108)
-INSERT INTO course_schedule (schedule_id, course_id, batch_id, room_number, slot_id) VALUES
-(1, 101, 201, 'UB101', 1),   -- DBMS in UB101, Day 1 (Mon) 08:00
-(2, 102, 202, 'UB102', 14),  -- OS in UB102, Day 2 (Tue) 11:00
-(3, 103, 203, 'UB201', 27);  -- AI in UB201, Day 3 (Wed) 14:00
-
--- 6. Seed Administrative & Viewer Staff Users
+-- 5. Seed Administrative & Viewer Staff Users
 -- Passwords: 'Coordinator@123' and 'Viewer@123' (bcrypt hashed, 10 rounds)
 INSERT INTO users (id, name, email, password_hash, role) VALUES
 (1, 'Department Coordinator', 'coordinator@college.edu', '$2b$10$h65xwOUqjjmH2o5whwcIg.pDnTzBEYc70u5pCu3SuqVrbqRC2KUJW', 'coordinator'),
 (2, 'Department Viewer', 'viewer@college.edu', '$2b$10$IkNvVsw/xnD2fwJzIjzKp.sT5pbU30ioPl9wPv1Jto6LHmF0GF7pi', 'viewer');
+
+-- 6. Seed Initial Schedule (Matching Transaction 1 & 5NF Proof)
+-- slot_id 1 = Day 1, 08:00 (old 101); slot_id 14 = Day 2, 11:00 (old 105); slot_id 27 = Day 3, 14:00 (old 108)
+INSERT INTO course_schedule (schedule_id, course_id, batch_id, room_number, slot_id, created_by) VALUES
+(1, 101, 201, 'UB101', 1, 1),   -- DBMS in UB101, Day 1 (Mon) 08:00 (created by coordinator)
+(2, 102, 202, 'UB102', 14, 1),  -- OS in UB102, Day 2 (Tue) 11:00 (created by coordinator)
+(3, 103, 203, 'UB201', 27, 1);  -- AI in UB201, Day 3 (Wed) 14:00 (created by coordinator)
 
 -- Re-enable foreign key checks
 SET FOREIGN_KEY_CHECKS = 1;

@@ -75,6 +75,138 @@ export const provisionUser = async (userData: { name: string; email: string; pas
 };
 
 // ==========================================
+// Department Management
+// ==========================================
+
+export interface Department {
+    dept_id: number;
+    dept_name: string;
+    total_courses?: number;
+    total_batches?: number;
+}
+
+export interface DepartmentImpact {
+    dept_id: number;
+    courses_count: number;
+    batches_count: number;
+    schedules_count: number;
+}
+
+export const fetchDepartments = async (): Promise<Department[]> => {
+    const res = await authFetch('/departments');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch departments');
+    }
+    return res.json();
+};
+
+export const createDepartment = async (data: { dept_id: number; dept_name: string }) => {
+    const res = await authFetch('/departments', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to create department');
+    return result;
+};
+
+export const deleteDepartment = async (deptId: number) => {
+    const res = await authFetch(`/departments/${deptId}`, {
+        method: 'DELETE'
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to delete department');
+    return result;
+};
+
+export const fetchDepartmentImpact = async (deptId: number): Promise<DepartmentImpact> => {
+    const res = await authFetch(`/departments/${deptId}/impact`);
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch department impact');
+    }
+    return res.json();
+};
+
+// ==========================================
+// Course Management
+// ==========================================
+
+export interface Course {
+    course_id: number;
+    course_name: string;
+    course_code: string;
+    dept_id: number;
+    dept_name?: string;
+    scheduled_slots?: number;
+}
+
+export interface CourseImpact {
+    course_id: number;
+    schedules_count: number;
+}
+
+export const fetchCourses = async (): Promise<Course[]> => {
+    const res = await authFetch('/courses');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch courses');
+    }
+    return res.json();
+};
+
+export const createCourse = async (data: { course_id: number; course_code: string; course_name: string; dept_id: number }) => {
+    const res = await authFetch('/courses', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to create course');
+    return result;
+};
+
+export const deleteCourse = async (courseId: number) => {
+    const res = await authFetch(`/courses/${courseId}`, {
+        method: 'DELETE'
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to delete course');
+    return result;
+};
+
+export const fetchCourseImpact = async (courseId: number): Promise<CourseImpact> => {
+    const res = await authFetch(`/courses/${courseId}/impact`);
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch course impact');
+    }
+    return res.json();
+};
+
+// ==========================================
+// Cascade Impact Analysis for Rooms and Batches
+// ==========================================
+
+export const fetchRoomImpact = async (roomNumber: string): Promise<{ room_number: string; schedules_count: number }> => {
+    const res = await authFetch(`/rooms/${roomNumber}/impact`);
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch room impact');
+    }
+    return res.json();
+};
+
+export const fetchBatchImpact = async (batchId: number | string): Promise<{ batch_id: number; schedules_count: number }> => {
+    const res = await authFetch(`/batches/${batchId}/impact`);
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch batch impact');
+    }
+    return res.json();
+};
+
+// ==========================================
 // Basic CRUD Methods
 // ==========================================
 
@@ -92,15 +224,6 @@ export const fetchSchedules = async () => {
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to fetch schedules');
-    }
-    return res.json();
-};
-
-export const fetchCourses = async () => {
-    const res = await authFetch('/courses');
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to fetch courses');
     }
     return res.json();
 };

@@ -81,11 +81,167 @@ app.get('/api/schedules', authenticateToken, async (req, res) => {
   }
 });
 
-// Get all courses (Authenticated: Coordinator & Viewer)
+// ==========================================
+// Department Management Routes
+// ==========================================
+
+// Get all departments with counts (Authenticated: Coordinator & Viewer)
+app.get('/api/departments', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT d.dept_id, d.dept_name,
+             COUNT(DISTINCT c.course_id) AS total_courses,
+             COUNT(DISTINCT b.batch_id) AS total_batches
+      FROM Department d
+      LEFT JOIN Course c ON d.dept_id = c.dept_id
+      LEFT JOIN Batch b ON d.dept_id = b.dept_id
+      GROUP BY d.dept_id, d.dept_name
+      ORDER BY d.dept_id
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add Department (Coordinator only)
+app.post('/api/departments', authenticateToken, requireCoordinator, async (req, res) => {
+  const { dept_id, dept_name } = req.body;
+  if (!dept_id || !dept_name) {
+    return res.status(400).json({ error: 'Department ID and Department Name are required.' });
+  }
+  try {
+    await db.query('INSERT INTO Department (dept_id, dept_name) VALUES (?, ?)', [Number(dept_id), dept_name.trim()]);
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Impact preview for Department deletion
+app.get('/api/departments/:dept_id/impact', authenticateToken, async (req, res) => {
+  const { dept_id } = req.params;
+  try {
+    const [courseRows] = await db.query('SELECT COUNT(*) as count FROM Course WHERE dept_id = ?', [dept_id]);
+    const [batchRows] = await db.query('SELECT COUNT(*) as count FROM Batch WHERE dept_id = ?', [dept_id]);
+    const [scheduleRows] = await db.query(`
+      SELECT COUNT(*) as count FROM Course_Schedule cs
+      JOIN Course c ON cs.course_id = c.course_id
+      WHERE c.dept_id = ?
+    `, [dept_id]);
+    res.json({
+      dept_id: Number(dept_id),
+      courses_count: courseRows[0].count,
+      batches_count: batchRows[0].count,
+      schedules_count: scheduleRows[0].count
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete Department (Coordinator only)
+app.delete('/api/departments/:dept_id', authenticateToken, requireCoordinator, async (req, res) => {
+  const { dept_id } = req.params;
+  try {
+    const [result] = await db.query('DELETE FROM Department WHERE dept_id = ?', [dept_id]);
+    res.json({ success: true, deleted: result.affectedRows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// Course Management Routes
+// ==========================================
+
+// Get all courses with department and schedule info (Authenticated: Coordinator & Viewer)
 app.get('/api/courses', authenticateToken, async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM Course');
+    const [rows] = await db.query(`
+      SELECT c.course_id, c.course_name, c.course_code, c.dept_id, d.dept_name,
+             COUNT(cs.schedule_id) AS scheduled_slots
+      FROM Course c
+      JOIN Department d ON c.dept_id = d.dept_id
+      LEFT JOIN Course_Schedule cs ON c.course_id = cs.course_id
+      GROUP BY c.course_id, c.course_name, c.course_code, c.dept_id, d.dept_name
+      ORDER BY c.course_id
+    `);
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add Course (Coordinator only)
+app.post('/api/courses', authenticateToken, requireCoordinator, async (req, res) => {
+  const { course_id, course_code, course_name, dept_id } = req.body;
+  if (!course_id || !course_code || !course_name || !dept_id) {
+    return res.status(400).json({ error: 'All fields (ID, code, name, department) are required.' });
+  }
+  try {
+    await db.query(
+      'INSERT INTO Course (course_id, course_code, course_name, dept_id) VALUES (?, ?, ?, ?)',
+      [Number(course_id), course_code.trim(), course_name.trim(), Number(dept_id)]
+    );
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Impact preview for Course deletion
+app.get('/api/courses/:course_id/impact', authenticateToken, async (req, res) => {
+  const { course_id } = req.params;
+  try {
+    const [scheduleRows] = await db.query('SELECT COUNT(*) as count FROM Course_Schedule WHERE course_id = ?', [course_id]);
+    res.json({
+      course_id: Number(course_id),
+      schedules_count: scheduleRows[0].count
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete Course (Coordinator only)
+app.delete('/api/courses/:course_id', authenticateToken, requireCoordinator, async (req, res) => {
+  const { course_id } = req.params;
+  try {
+    const [result] = await db.query('DELETE FROM Course WHERE course_id = ?', [course_id]);
+    res.json({ success: true, deleted: result.affectedRows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// Entity Impact Routes (Cascade Protection)
+// ==========================================
+
+// Impact preview for Room deletion
+app.get('/api/rooms/:room_number/impact', authenticateToken, async (req, res) => {
+  const { room_number } = req.params;
+  try {
+    const [scheduleRows] = await db.query('SELECT COUNT(*) as count FROM Course_Schedule WHERE room_number = ?', [room_number]);
+    res.json({
+      room_number,
+      schedules_count: scheduleRows[0].count
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Impact preview for Batch deletion
+app.get('/api/batches/:batch_id/impact', authenticateToken, async (req, res) => {
+  const { batch_id } = req.params;
+  try {
+    const [scheduleRows] = await db.query('SELECT COUNT(*) as count FROM Course_Schedule WHERE batch_id = ?', [batch_id]);
+    res.json({
+      batch_id: Number(batch_id),
+      schedules_count: scheduleRows[0].count
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -94,7 +250,12 @@ app.get('/api/courses', authenticateToken, async (req, res) => {
 // Get all batches (Authenticated: Coordinator & Viewer)
 app.get('/api/batches', authenticateToken, async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM Batch');
+    const [rows] = await db.query(`
+      SELECT b.*, d.dept_name 
+      FROM Batch b 
+      JOIN Department d ON b.dept_id = d.dept_id 
+      ORDER BY b.dept_id, b.year_of_study, b.section
+    `);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -111,13 +272,14 @@ app.get('/api/timeslots', authenticateToken, async (req, res) => {
   }
 });
 
-// Allocate a Room (Coordinator only)
+// Allocate a Room (Coordinator only - logs created_by)
 app.post('/api/schedules', authenticateToken, requireCoordinator, async (req, res) => {
   const { course_id, batch_id, room_number, slot_id } = req.body;
+  const created_by = req.user ? req.user.id : null;
   try {
     const [result] = await db.query(
-      'INSERT INTO Course_Schedule (course_id, batch_id, room_number, slot_id) VALUES (?, ?, ?, ?)',
-      [course_id, batch_id, room_number, slot_id]
+      'INSERT INTO Course_Schedule (course_id, batch_id, room_number, slot_id, created_by) VALUES (?, ?, ?, ?, ?)',
+      [course_id, batch_id, room_number, slot_id, created_by]
     );
     res.status(201).json({ success: true, schedule_id: result.insertId });
   } catch (err) {

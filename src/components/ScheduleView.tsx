@@ -18,9 +18,12 @@ interface Schedule {
     day_of_week: string;
     start_time: string;
     end_time: string;
+    created_by_name?: string;
+    created_by_email?: string;
+    updated_at?: string;
 }
 
-interface Course { course_id: string; course_name: string; course_code: string; }
+interface Course { course_id: number | string; course_name: string; course_code: string; }
 interface Batch { batch_id: string; year_of_study: number; section: string; student_count: number; }
 interface Room { room_number: string; room_type: string; capacity: number; }
 interface TimeSlot { slot_id: string; day_of_week: string; start_time: string; end_time: string; }
@@ -290,6 +293,7 @@ export default function ScheduleView() {
                                 <th>Batch</th>
                                 <th>Room</th>
                                 <th>Time</th>
+                                <th>Allocated By</th>
                                 {isCoordinator && <th></th>}
                             </tr>
                         </thead>
@@ -309,6 +313,15 @@ export default function ScheduleView() {
                                     </td>
                                     <td className="text-gray-600">
                                         Day {s.day_of_week || '?'} ({s.start_time ? s.start_time.substring(0,5) : '--:--'} — {s.end_time ? s.end_time.substring(0,5) : '--:--'})
+                                    </td>
+                                    <td className="text-gray-500 text-xs">
+                                        {s.created_by_name ? (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-medium border border-purple-100">
+                                                {s.created_by_name}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">—</span>
+                                        )}
                                     </td>
                                     {isCoordinator && (
                                         <td className="text-right">

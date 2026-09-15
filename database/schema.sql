@@ -49,16 +49,31 @@ CREATE TABLE IF NOT EXISTS Time_Slot (
     UNIQUE(day_of_week, start_time, end_time)
 );
 
+-- -----------------------------------------------------
+-- User Authentication Table (Defined before dependent tables)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'viewer' CHECK (role IN ('coordinator', 'viewer')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS Course_Schedule (
     schedule_id INT PRIMARY KEY AUTO_INCREMENT,
     course_id INT NOT NULL,
     batch_id INT NOT NULL,
     room_number VARCHAR(10) NOT NULL,
     slot_id INT NOT NULL,
+    created_by INT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (course_id) REFERENCES Course(course_id) ON DELETE CASCADE,
     FOREIGN KEY (batch_id) REFERENCES Batch(batch_id) ON DELETE CASCADE,
     FOREIGN KEY (room_number) REFERENCES Room(room_number) ON DELETE CASCADE,
     FOREIGN KEY (slot_id) REFERENCES Time_Slot(slot_id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE(room_number, slot_id) -- Prevents double booking at the schema level
 );
 
@@ -90,33 +105,25 @@ CREATE TABLE IF NOT EXISTS Room_Resource (
 );
 
 -- -----------------------------------------------------
--- User Authentication Table
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL DEFAULT 'viewer' CHECK (role IN ('coordinator', 'viewer')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- -----------------------------------------------------
 -- 4.1 Views
 -- -----------------------------------------------------
 
 -- View: Complete Schedule Details
 CREATE OR REPLACE VIEW View_Detailed_Schedule AS
 SELECT 
-    cs.schedule_id, c.course_code, c.course_name, d.dept_name, 
-    b.year_of_study, b.section, r.room_number, r.room_type, 
-    ts.day_of_week, ts.start_time, ts.end_time
+    cs.schedule_id, cs.course_id, cs.batch_id, cs.slot_id,
+    c.course_code, c.course_name, d.dept_name, d.dept_id,
+    b.year_of_study, b.section, b.student_count,
+    r.room_number, r.room_type, r.capacity as room_capacity,
+    ts.day_of_week, ts.start_time, ts.end_time,
+    cs.created_by, u.name AS created_by_name, u.email AS created_by_email, cs.updated_at
 FROM Course_Schedule cs
 JOIN Course c ON cs.course_id = c.course_id
 JOIN Department d ON c.dept_id = d.dept_id
 JOIN Batch b ON cs.batch_id = b.batch_id
 JOIN Room r ON cs.room_number = r.room_number
-JOIN Time_Slot ts ON cs.slot_id = ts.slot_id;
+JOIN Time_Slot ts ON cs.slot_id = ts.slot_id
+LEFT JOIN users u ON cs.created_by = u.id;
 
 -- View: Room Utilization Analysis
 CREATE OR REPLACE VIEW View_Room_Utilization AS
@@ -142,7 +149,7 @@ BEGIN
     DECLARE room_cap INT;
     DECLARE student_cnt INT;
 
-    -- 1. Check Double Booking Conflict
+    -- 1. Check Room Double Booking Conflict
     SELECT COUNT(*) INTO conflict_count
     FROM Course_Schedule
     WHERE room_number = NEW.room_number AND slot_id = NEW.slot_id;
@@ -152,13 +159,101 @@ BEGIN
         SET MESSAGE_TEXT = 'Double Booking Error: The room is already occupied for this time slot!';
     END IF;
 
-    -- 2. Check Capacity Constraint
+    -- 2. Check Batch Double Booking Conflict
+    SELECT COUNT(*) INTO conflict_count
+    FROM Course_Schedule
+    WHERE batch_id = NEW.batch_id AND slot_id = NEW.slot_id;
+
+    IF conflict_count > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Batch Conflict Error: This batch is already scheduled for another class in this time slot!';
+    END IF;
+
+    -- 3. Check Capacity Constraint
     SELECT capacity INTO room_cap FROM Room WHERE room_number = NEW.room_number;
     SELECT student_count INTO student_cnt FROM Batch WHERE batch_id = NEW.batch_id;
 
     IF student_cnt > room_cap THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Capacity Error: Room capacity is insufficient for the batch size!';
+    END IF;
+END //
+
+-- Trigger: Prevent Double Booking AND Check Capacity before UPDATE on Course_Schedule
+DROP TRIGGER IF EXISTS trg_check_schedule_update;
+CREATE TRIGGER trg_check_schedule_update
+BEFORE UPDATE ON Course_Schedule
+FOR EACH ROW
+BEGIN
+    DECLARE conflict_count INT;
+    DECLARE room_cap INT;
+    DECLARE student_cnt INT;
+
+    -- 1. Check Room Double Booking Conflict (excluding current schedule row)
+    SELECT COUNT(*) INTO conflict_count
+    FROM Course_Schedule
+    WHERE room_number = NEW.room_number AND slot_id = NEW.slot_id AND schedule_id != OLD.schedule_id;
+
+    IF conflict_count > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Double Booking Error: The room is already occupied for this time slot!';
+    END IF;
+
+    -- 2. Check Batch Double Booking Conflict (excluding current schedule row)
+    SELECT COUNT(*) INTO conflict_count
+    FROM Course_Schedule
+    WHERE batch_id = NEW.batch_id AND slot_id = NEW.slot_id AND schedule_id != OLD.schedule_id;
+
+    IF conflict_count > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Batch Conflict Error: This batch is already scheduled for another class in this time slot!';
+    END IF;
+
+    -- 3. Check Capacity Constraint
+    SELECT capacity INTO room_cap FROM Room WHERE room_number = NEW.room_number;
+    SELECT student_count INTO student_cnt FROM Batch WHERE batch_id = NEW.batch_id;
+
+    IF student_cnt > room_cap THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Capacity Error: Room capacity is insufficient for the batch size!';
+    END IF;
+END //
+
+-- Trigger: Ensure updating a room's capacity does not invalidate existing schedules
+DROP TRIGGER IF EXISTS trg_check_room_capacity_update;
+CREATE TRIGGER trg_check_room_capacity_update
+BEFORE UPDATE ON Room
+FOR EACH ROW
+BEGIN
+    DECLARE max_batch_size INT;
+
+    SELECT MAX(b.student_count) INTO max_batch_size
+    FROM Course_Schedule cs
+    JOIN Batch b ON cs.batch_id = b.batch_id
+    WHERE cs.room_number = OLD.room_number;
+
+    IF max_batch_size IS NOT NULL AND NEW.capacity < max_batch_size THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Capacity Error: Cannot reduce room capacity below existing scheduled batch sizes!';
+    END IF;
+END //
+
+-- Trigger: Ensure updating a batch's student_count does not exceed any room it is currently scheduled in
+DROP TRIGGER IF EXISTS trg_check_batch_size_update;
+CREATE TRIGGER trg_check_batch_size_update
+BEFORE UPDATE ON Batch
+FOR EACH ROW
+BEGIN
+    DECLARE min_room_cap INT;
+
+    SELECT MIN(r.capacity) INTO min_room_cap
+    FROM Course_Schedule cs
+    JOIN Room r ON cs.room_number = r.room_number
+    WHERE cs.batch_id = OLD.batch_id;
+
+    IF min_room_cap IS NOT NULL AND NEW.student_count > min_room_cap THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Capacity Error: Cannot increase batch size beyond the capacity of its currently scheduled rooms!';
     END IF;
 END //
 

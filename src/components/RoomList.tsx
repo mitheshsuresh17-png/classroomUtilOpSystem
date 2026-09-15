@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { fetchRooms, fetchFreeRooms, fetchTimeSlots, fetchSchedules, createRoom, deleteRoom } from '../lib/api';
+import { fetchRooms, fetchFreeRooms, fetchTimeSlots, fetchSchedules, createRoom, deleteRoom, fetchRoomImpact } from '../lib/api';
 import { Filter, Search, Building2, ChevronDown, ChevronUp, Plus, Trash2, Eye } from 'lucide-react';
 import TimeSlotGrid, { TimeSlot } from './TimeSlotGrid';
 import { useAuth } from '../contexts/AuthContext';
+import { CascadeDeleteModal } from './CascadeDeleteModal';
 
 interface Room {
     room_number: string;
@@ -34,6 +35,9 @@ export default function RoomList() {
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
+    // Cascade Delete Modal State
+    const [deleteTarget, setDeleteTarget] = useState<Room | null>(null);
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setErrorMsg('');
@@ -49,15 +53,10 @@ export default function RoomList() {
         }
     };
 
-    const handleDelete = async (e: React.MouseEvent, id: string) => {
-        e.stopPropagation(); // prevent expanding the row
-        if (!confirm('Are you sure you want to delete this room? This will also delete any schedules using this room.')) return;
-        try {
-            await deleteRoom(id);
-            loadData();
-        } catch (err: any) {
-            alert(err.message || 'Failed to delete room');
-        }
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        await deleteRoom(deleteTarget.room_number);
+        await loadData();
     };
 
     useEffect(() => {
@@ -256,7 +255,10 @@ export default function RoomList() {
                                                 {isCoordinator && (
                                                     <td className="text-right">
                                                         <button 
-                                                            onClick={(e) => handleDelete(e, room.room_number)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeleteTarget(room);
+                                                            }}
                                                             className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                             title="Delete Room"
                                                         >
@@ -292,6 +294,19 @@ export default function RoomList() {
                     </div>
                 )}
             </div>
+
+            {/* Cascade Delete Modal */}
+            {deleteTarget && (
+                <CascadeDeleteModal
+                    isOpen={!!deleteTarget}
+                    onClose={() => setDeleteTarget(null)}
+                    onConfirm={confirmDelete}
+                    title="Delete Room"
+                    itemName={`Room ${deleteTarget.room_number} (${deleteTarget.room_type})`}
+                    itemType="room"
+                    fetchImpact={() => fetchRoomImpact(deleteTarget.room_number)}
+                />
+            )}
         </div>
     );
 }

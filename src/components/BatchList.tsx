@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { fetchBatches, createBatch, deleteBatch } from '../lib/api';
+import { fetchBatches, createBatch, deleteBatch, fetchBatchImpact } from '../lib/api';
 import { Users, Search, Plus, Trash2, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { CascadeDeleteModal } from './CascadeDeleteModal';
 
 interface Batch {
     batch_id: string;
@@ -9,6 +10,7 @@ interface Batch {
     section: string;
     student_count: number;
     dept_id: number;
+    dept_name?: string;
 }
 
 export default function BatchList() {
@@ -26,6 +28,9 @@ export default function BatchList() {
     const [showForm, setShowForm] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
+
+    // Cascade delete state
+    const [deleteTarget, setDeleteTarget] = useState<Batch | null>(null);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -48,14 +53,10 @@ export default function BatchList() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this batch? This will also delete any schedules allocated for this batch.')) return;
-        try {
-            await deleteBatch(id);
-            loadBatches();
-        } catch (err: any) {
-            alert(err.message || 'Failed to delete batch');
-        }
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        await deleteBatch(deleteTarget.batch_id.toString());
+        await loadBatches();
     };
 
     useEffect(() => {
@@ -179,7 +180,7 @@ export default function BatchList() {
                                     <th>Year of Study</th>
                                     <th>Section</th>
                                     <th>Student Count</th>
-                                    <th>Dept ID</th>
+                                    <th>Department</th>
                                     {isCoordinator && <th></th>}
                                 </tr>
                             </thead>
@@ -194,11 +195,11 @@ export default function BatchList() {
                                         </td>
                                         <td className="font-semibold text-gray-800">{batch.section}</td>
                                         <td className="font-medium text-blue-600">{batch.student_count} Students</td>
-                                        <td className="text-gray-500 font-mono text-sm">{batch.dept_id}</td>
+                                        <td className="text-gray-500 text-sm">{batch.dept_name || `Dept #${batch.dept_id}`}</td>
                                         {isCoordinator && (
                                             <td className="text-right">
                                                 <button 
-                                                    onClick={() => handleDelete(batch.batch_id.toString())}
+                                                    onClick={() => setDeleteTarget(batch)}
                                                     className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                     title="Delete Batch"
                                                 >
@@ -220,6 +221,19 @@ export default function BatchList() {
                     </div>
                 )}
             </div>
+
+            {/* Cascade Delete Modal */}
+            {deleteTarget && (
+                <CascadeDeleteModal
+                    isOpen={!!deleteTarget}
+                    onClose={() => setDeleteTarget(null)}
+                    onConfirm={confirmDelete}
+                    title="Delete Batch"
+                    itemName={`Batch ${deleteTarget.batch_id} (Year ${deleteTarget.year_of_study}-${deleteTarget.section})`}
+                    itemType="batch"
+                    fetchImpact={() => fetchBatchImpact(deleteTarget.batch_id)}
+                />
+            )}
         </div>
     );
 }
