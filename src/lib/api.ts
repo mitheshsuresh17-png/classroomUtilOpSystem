@@ -1,20 +1,38 @@
-// Base URL for API calls. Routes through Vite proxy to bypass Windows Firewall for mobile testing.
+// Base URL for API calls. Routes through Vite proxy to Express backend.
 const API_BASE_URL = '/api';
+
+export function getAuthToken(): string | null {
+    return localStorage.getItem('clus_token');
+}
+
+export async function authFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
+    const token = getAuthToken();
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> || {}),
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(endpoint.startsWith('/api') ? endpoint : `${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+    });
+
+    if (res.status === 401) {
+        // Token expired or invalid
+        localStorage.removeItem('clus_token');
+        localStorage.removeItem('clus_user');
+    }
+
+    return res;
+}
 
 // ==========================================
 // Authentication
 // ==========================================
-
-export const registerUser = async (name: string, email: string, password: string) => {
-    const res = await fetch(`${API_BASE_URL}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Signup failed');
-    return data;
-};
 
 export const loginUser = async (email: string, password: string) => {
     const res = await fetch(`${API_BASE_URL}/auth/signin`, {
@@ -27,33 +45,81 @@ export const loginUser = async (email: string, password: string) => {
     return data;
 };
 
+// ==========================================
+// Staff User Management (Coordinator only)
+// ==========================================
+
+export interface StaffUser {
+    id: number;
+    name: string;
+    email: string;
+    role: 'coordinator' | 'viewer';
+    created_at: string;
+}
+
+export const fetchUsers = async (): Promise<StaffUser[]> => {
+    const res = await authFetch('/users');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch staff users');
+    return data;
+};
+
+export const provisionUser = async (userData: { name: string; email: string; password: string; role: 'coordinator' | 'viewer' }) => {
+    const res = await authFetch('/users', {
+        method: 'POST',
+        body: JSON.stringify(userData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to provision staff user');
+    return data;
+};
+
+// ==========================================
+// Basic CRUD Methods
+// ==========================================
+
 export const fetchRooms = async () => {
-    const res = await fetch(`${API_BASE_URL}/rooms`);
-    if (!res.ok) throw new Error('Failed to fetch rooms');
+    const res = await authFetch('/rooms');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch rooms');
+    }
     return res.json();
 };
 
 export const fetchSchedules = async () => {
-    const res = await fetch(`${API_BASE_URL}/schedules`);
-    if (!res.ok) throw new Error('Failed to fetch schedules');
+    const res = await authFetch('/schedules');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch schedules');
+    }
     return res.json();
 };
 
 export const fetchCourses = async () => {
-    const res = await fetch(`${API_BASE_URL}/courses`);
-    if (!res.ok) throw new Error('Failed to fetch courses');
+    const res = await authFetch('/courses');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch courses');
+    }
     return res.json();
 };
 
 export const fetchBatches = async () => {
-    const res = await fetch(`${API_BASE_URL}/batches`);
-    if (!res.ok) throw new Error('Failed to fetch batches');
+    const res = await authFetch('/batches');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch batches');
+    }
     return res.json();
 };
 
 export const fetchTimeSlots = async () => {
-    const res = await fetch(`${API_BASE_URL}/timeslots`);
-    if (!res.ok) throw new Error('Failed to fetch time slots');
+    const res = await authFetch('/timeslots');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch time slots');
+    }
     return res.json();
 };
 
@@ -65,9 +131,8 @@ interface SchedulePayload {
 }
 
 export const scheduleRoom = async (scheduleData: SchedulePayload) => {
-    const res = await fetch(`${API_BASE_URL}/schedules`, {
+    const res = await authFetch('/schedules', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scheduleData)
     });
     
@@ -77,7 +142,7 @@ export const scheduleRoom = async (scheduleData: SchedulePayload) => {
 };
 
 export const deleteSchedule = async (scheduleId: string) => {
-    const res = await fetch(`${API_BASE_URL}/schedules/${scheduleId}`, {
+    const res = await authFetch(`/schedules/${scheduleId}`, {
         method: 'DELETE'
     });
     const data = await res.json();
@@ -86,9 +151,8 @@ export const deleteSchedule = async (scheduleId: string) => {
 };
 
 export const createRoom = async (roomData: any) => {
-    const res = await fetch(`${API_BASE_URL}/rooms`, {
+    const res = await authFetch('/rooms', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(roomData)
     });
     const data = await res.json();
@@ -97,9 +161,8 @@ export const createRoom = async (roomData: any) => {
 };
 
 export const createBatch = async (batchData: any) => {
-    const res = await fetch(`${API_BASE_URL}/batches`, {
+    const res = await authFetch('/batches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(batchData)
     });
     const data = await res.json();
@@ -108,7 +171,7 @@ export const createBatch = async (batchData: any) => {
 };
 
 export const deleteRoom = async (roomId: string) => {
-    const res = await fetch(`${API_BASE_URL}/rooms/${roomId}`, {
+    const res = await authFetch(`/rooms/${roomId}`, {
         method: 'DELETE'
     });
     const data = await res.json();
@@ -117,7 +180,7 @@ export const deleteRoom = async (roomId: string) => {
 };
 
 export const deleteBatch = async (batchId: string) => {
-    const res = await fetch(`${API_BASE_URL}/batches/${batchId}`, {
+    const res = await authFetch(`/batches/${batchId}`, {
         method: 'DELETE'
     });
     const data = await res.json();
@@ -125,28 +188,30 @@ export const deleteBatch = async (batchId: string) => {
     return data;
 };
 
+// ==========================================
 // Advanced Query Endpoints
+// ==========================================
 
 export const fetchUtilizationReport = async () => {
-    const res = await fetch(`${API_BASE_URL}/reports/utilization`);
+    const res = await authFetch('/reports/utilization');
     if (!res.ok) throw new Error('Failed to fetch utilization');
     return res.json();
 };
 
 export const fetchFreeRooms = async () => {
-    const res = await fetch(`${API_BASE_URL}/reports/free-rooms`);
+    const res = await authFetch('/reports/free-rooms');
     if (!res.ok) throw new Error('Failed to fetch free rooms');
     return res.json();
 };
 
 export const fetchEmptySlots = async () => {
-    const res = await fetch(`${API_BASE_URL}/reports/empty-slots`);
+    const res = await authFetch('/reports/empty-slots');
     if (!res.ok) throw new Error('Failed to fetch empty slots');
     return res.json();
 };
 
 export const evaluateRoomUsage = async () => {
-    const res = await fetch(`${API_BASE_URL}/reports/cursor-evaluation`);
+    const res = await authFetch('/reports/cursor-evaluation');
     if (!res.ok) throw new Error('Failed to evaluate room usage');
     return res.json();
 };
@@ -156,45 +221,43 @@ export const evaluateRoomUsage = async () => {
 // ==========================================
 
 export const fetchDepartmentCourseLoad = async () => {
-    const res = await fetch(`${API_BASE_URL}/analytics/department-course-load`);
+    const res = await authFetch('/analytics/department-course-load');
     if (!res.ok) throw new Error('Failed to fetch department course load');
     return res.json();
 };
 
-
-
 export const fetchUnscheduledCourses = async () => {
-    const res = await fetch(`${API_BASE_URL}/analytics/unscheduled-courses`);
+    const res = await authFetch('/analytics/unscheduled-courses');
     if (!res.ok) throw new Error('Failed to fetch unscheduled courses');
     return res.json();
 };
 
 export const fetchRoomSaturation = async (minSaturation: number = 0.90) => {
-    const res = await fetch(`${API_BASE_URL}/analytics/room-saturation?min_saturation=${minSaturation}`);
+    const res = await authFetch(`/analytics/room-saturation?min_saturation=${minSaturation}`);
     if (!res.ok) throw new Error('Failed to fetch room saturation');
     return res.json();
 };
 
 export const fetchInfrastructureAverages = async () => {
-    const res = await fetch(`${API_BASE_URL}/analytics/infrastructure-averages`);
+    const res = await authFetch('/analytics/infrastructure-averages');
     if (!res.ok) throw new Error('Failed to fetch infrastructure averages');
     return res.json();
 };
 
 export const fetchTriggerTroubleshooting = async (batchId: string = '201', roomNumber: string = 'UB102') => {
-    const res = await fetch(`${API_BASE_URL}/analytics/trigger-troubleshooting?batch_id=${batchId}&room_number=${roomNumber}`);
+    const res = await authFetch(`/analytics/trigger-troubleshooting?batch_id=${batchId}&room_number=${roomNumber}`);
     if (!res.ok) throw new Error('Failed to fetch trigger troubleshooting');
     return res.json();
 };
 
 export const fetchInfrastructureSorting = async () => {
-    const res = await fetch(`${API_BASE_URL}/analytics/infrastructure-sorting`);
+    const res = await authFetch('/analytics/infrastructure-sorting');
     if (!res.ok) throw new Error('Failed to fetch infrastructure sorting');
     return res.json();
 };
 
 export const fetchTrappedCapacity = async () => {
-    const res = await fetch(`${API_BASE_URL}/analytics/trapped-capacity`);
+    const res = await authFetch('/analytics/trapped-capacity');
     if (!res.ok) throw new Error('Failed to fetch trapped capacity');
     return res.json();
 };
@@ -204,43 +267,44 @@ export const fetchTrappedCapacity = async () => {
 // ==========================================
 
 export const fetchUnifiedUtilization = async () => {
-    const res = await fetch(`${API_BASE_URL}/advanced-analytics/unified-utilization`);
+    const res = await authFetch('/advanced-analytics/unified-utilization');
     if (!res.ok) throw new Error('Failed to fetch unified utilization');
     return res.json();
 };
 
 export const fetchWastedCapacity = async () => {
-    const res = await fetch(`${API_BASE_URL}/advanced-analytics/wasted-capacity`);
+    const res = await authFetch('/advanced-analytics/wasted-capacity');
     if (!res.ok) throw new Error('Failed to fetch wasted capacity');
     return res.json();
 };
 
 export const fetchTemporalStress = async () => {
-    const res = await fetch(`${API_BASE_URL}/advanced-analytics/temporal-stress`);
+    const res = await authFetch('/advanced-analytics/temporal-stress');
     if (!res.ok) throw new Error('Failed to fetch temporal stress index');
     return res.json();
 };
 
 export const fetchUtilizationImbalance = async () => {
-    const res = await fetch(`${API_BASE_URL}/advanced-analytics/imbalance`);
+    const res = await authFetch('/advanced-analytics/imbalance');
     if (!res.ok) throw new Error('Failed to fetch utilization imbalance');
     return res.json();
 };
 
 export const fetchCapacityMismatch = async () => {
-    const res = await fetch(`${API_BASE_URL}/advanced-analytics/mismatch`);
+    const res = await authFetch('/advanced-analytics/mismatch');
     if (!res.ok) throw new Error('Failed to fetch capacity mismatch');
     return res.json();
 };
 
 export const fetchActionableSignals = async () => {
-    const res = await fetch(`${API_BASE_URL}/advanced-analytics/signals`);
+    const res = await authFetch('/advanced-analytics/signals');
     if (!res.ok) throw new Error('Failed to fetch actionable signals');
     return res.json();
 };
 
 export const fetchEfficiencyScore = async () => {
-    const res = await fetch(`${API_BASE_URL}/advanced-analytics/efficiency-score`);
+    const res = await authFetch('/advanced-analytics/efficiency-score');
     if (!res.ok) throw new Error('Failed to fetch system efficiency score');
     return res.json();
 };
+

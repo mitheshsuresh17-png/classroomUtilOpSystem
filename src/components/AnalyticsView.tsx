@@ -1,15 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  fetchUnifiedUtilization,
   fetchWastedCapacity,
   fetchTemporalStress,
-  fetchUtilizationImbalance,
   fetchCapacityMismatch,
   fetchActionableSignals,
   fetchEfficiencyScore
 } from '../lib/api';
 import { 
-  Activity, AlertTriangle, ShieldAlert, Zap, 
+  Activity, AlertTriangle, ShieldAlert, 
   TrendingDown, TrendingUp, Clock, Users,
   BarChart, ArrowRight, Gauge, CheckCircle2
 } from 'lucide-react';
@@ -24,8 +22,6 @@ export default function AnalyticsView() {
   const [mismatches, setMismatches] = useState<any[]>([]);
   const [wastedCapacity, setWastedCapacity] = useState<any[]>([]);
   const [temporalStress, setTemporalStress] = useState<any[]>([]);
-  const [unifiedUtil, setUnifiedUtil] = useState<any[]>([]);
-  const [imbalance, setImbalance] = useState<any[]>([]);
 
   useEffect(() => {
     loadAdvancedAnalytics();
@@ -40,17 +36,13 @@ export default function AnalyticsView() {
         sigData,
         misData,
         wasteData,
-        stressData,
-        utilData,
-        imbData
+        stressData
       ] = await Promise.all([
         fetchEfficiencyScore(),
         fetchActionableSignals(),
         fetchCapacityMismatch(),
         fetchWastedCapacity(),
-        fetchTemporalStress(),
-        fetchUnifiedUtilization(),
-        fetchUtilizationImbalance()
+        fetchTemporalStress()
       ]);
 
       // Handle the function return safely natively
@@ -61,8 +53,6 @@ export default function AnalyticsView() {
       setMismatches(misData);
       setWastedCapacity(wasteData);
       setTemporalStress(stressData);
-      setUnifiedUtil(utilData);
-      setImbalance(imbData);
     } catch (err: any) {
       console.error('Failed to load advanced analytics:', err);
       setError('Unable to securely fetch analytics data. Ensure the backend is communicating correctly.');

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Mail, Lock, User, ArrowRight, ArrowLeft, Building2, GraduationCap, BookOpen, Users, Zap, Sparkles } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ArrowLeft, Building2, GraduationCap, BookOpen, Users, Zap, Sparkles } from 'lucide-react';
 
 const features = [
   { label: 'Conflict-Free Scheduling', text: 'Database-enforced double-booking prevention', color: 'from-blue-500 to-indigo-500' },
@@ -20,13 +20,11 @@ const featurePositions = [
 ];
 
 export default function AuthPage() {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, signup } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,11 +32,7 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
     try {
-      if (isSignUp) {
-        await signup(name, email, password);
-      } else {
-        await login(email, password);
-      }
+      await login(email, password);
       navigate('/app');
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
@@ -151,7 +145,7 @@ export default function AuthPage() {
         </button>
 
         <div className="w-full max-w-md pt-12 lg:pt-0">
-          {/* Logo — static, doesn't change */}
+          {/* Logo */}
           <div className="mb-8">
             <div className="inline-flex items-center gap-2.5 mb-6">
               <img src="/high-resolution-color-logo.png" alt="CLUS Logo" className="h-10 w-auto object-contain drop-shadow-md" />
@@ -159,33 +153,13 @@ export default function AuthPage() {
             </div>
           </div>
 
-          {/* Tabs — static, doesn't shift */}
-          <div className="flex bg-gray-100 rounded-2xl p-1 mb-7">
-            <button
-              onClick={() => { setIsSignUp(false); setError(''); }}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300 ${
-                !isSignUp ? 'bg-white text-blue-600 shadow-md' : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => { setIsSignUp(true); setError(''); }}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300 ${
-                isSignUp ? 'bg-white text-blue-600 shadow-md' : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
-
-          {/* Title — changes text only, no layout shift */}
+          {/* Title */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 transition-all duration-300">
-              {isSignUp ? 'Create Account' : 'Welcome Back'}
+            <h2 className="text-2xl font-bold text-gray-900">
+              Staff Sign In
             </h2>
-            <p className="text-gray-400 text-sm mt-1.5 transition-all duration-300">
-              {isSignUp ? 'Join institutions already using CLUS' : 'Sign in to your CLUS dashboard'}
+            <p className="text-gray-400 text-sm mt-1.5">
+              Sign in to your department coordinator or viewer account
             </p>
           </div>
 
@@ -199,36 +173,10 @@ export default function AuthPage() {
             </div>
           )}
 
-          {/* Form — smooth name field transition, no full page re-render */}
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Name field: smooth expand/collapse */}
-            <div
-              className="overflow-hidden transition-all duration-300 ease-out"
-              style={{
-                maxHeight: isSignUp ? '80px' : '0px',
-                opacity: isSignUp ? 1 : 0,
-                marginBottom: isSignUp ? '0' : '-20px',
-              }}
-            >
-              <div className="group">
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required={isSignUp}
-                    placeholder="John Doe"
-                    tabIndex={isSignUp ? 0 : -1}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
             <div className="group">
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Email</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
                 <input
@@ -236,7 +184,7 @@ export default function AuthPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="you@institution.edu"
+                  placeholder="coordinator@college.edu"
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
                 />
               </div>
@@ -251,7 +199,6 @@ export default function AuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
                   placeholder="••••••••"
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
                 />
@@ -267,28 +214,24 @@ export default function AuthPage() {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {isSignUp ? 'Create Account' : 'Sign In'}
+                  Sign In
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </>
               )}
             </button>
           </form>
 
-          <p className="text-center text-sm text-gray-400 mt-8">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-            <button
-              onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-              className="text-blue-600 font-semibold ml-1.5 hover:text-blue-700 transition-colors"
-            >
-              {isSignUp ? 'Sign In' : 'Sign Up'}
-            </button>
-          </p>
+          <div className="mt-8 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500 leading-relaxed">
+            <p className="font-semibold text-slate-700 mb-1">Single-Department Access Policy</p>
+            User accounts and viewer roles are provisioned by Department Coordinators. Contact your coordinator if you require access.
+          </div>
 
-          <p className="text-center text-xs text-gray-300 mt-8">
+          <p className="text-center text-xs text-gray-300 mt-6">
             Secure authentication powered by CLUS
           </p>
         </div>
       </div>
+
 
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-10 bg-white border-b border-gray-100 px-4 py-2.5 shadow-sm">

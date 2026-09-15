@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { fetchRooms, fetchFreeRooms, fetchTimeSlots, fetchSchedules, createRoom, deleteRoom } from '../lib/api';
-import { Filter, Search, Building2, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { Filter, Search, Building2, ChevronDown, ChevronUp, Plus, Trash2, Eye } from 'lucide-react';
 import TimeSlotGrid, { TimeSlot } from './TimeSlotGrid';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Room {
     room_number: string;
@@ -11,6 +12,9 @@ interface Room {
 }
 
 export default function RoomList() {
+    const { user } = useAuth();
+    const isCoordinator = user?.role === 'coordinator';
+
     const [rooms, setRooms] = useState<Room[]>([]);
     const [slots, setSlots] = useState<TimeSlot[]>([]);
     const [schedules, setSchedules] = useState<any[]>([]);
@@ -88,16 +92,24 @@ export default function RoomList() {
 
     return (
         <div className="space-y-5">
-            {/* Add New Header / Form */}
+            {/* Header & Role Notice */}
             <div className="flex items-center justify-between">
-                <button 
-                    onClick={() => setShowForm(!showForm)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
-                >
-                    <Plus className={`w-4 h-4 transition-transform ${showForm ? 'rotate-45' : ''}`} />
-                    {showForm ? 'Cancel' : 'Add New Room'}
-                </button>
+                {isCoordinator ? (
+                    <button 
+                        onClick={() => setShowForm(!showForm)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
+                    >
+                        <Plus className={`w-4 h-4 transition-transform ${showForm ? 'rotate-45' : ''}`} />
+                        {showForm ? 'Cancel' : 'Add New Room'}
+                    </button>
+                ) : (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium rounded-xl">
+                        <Eye className="w-3.5 h-3.5 text-slate-500" />
+                        Viewer Mode — Room creation and deletion restricted to Coordinators
+                    </div>
+                )}
             </div>
+
 
             {showForm && (
                 <div className="card p-5 animate-fade-up">
@@ -212,7 +224,7 @@ export default function RoomList() {
                                     <th>Room Number</th>
                                     <th>Type</th>
                                     <th>Capacity</th>
-                                    <th></th>
+                                    {isCoordinator && <th></th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -241,19 +253,21 @@ export default function RoomList() {
                                                     </span>
                                                 </td>
                                                 <td className="font-medium text-gray-600">{room.capacity} seats</td>
-                                                <td className="text-right">
-                                                    <button 
-                                                        onClick={(e) => handleDelete(e, room.room_number)}
-                                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Delete Room"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </td>
+                                                {isCoordinator && (
+                                                    <td className="text-right">
+                                                        <button 
+                                                            onClick={(e) => handleDelete(e, room.room_number)}
+                                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Delete Room"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+                                                )}
                                             </tr>
                                             {isExpanded && (
                                                 <tr className="bg-blue-50/20">
-                                                    <td colSpan={4} className="p-4 border-b border-gray-100">
+                                                    <td colSpan={isCoordinator ? 4 : 3} className="p-4 border-b border-gray-100">
                                                         <div className="animate-fade-up">
                                                             <TimeSlotGrid 
                                                                 mode="view" 
@@ -268,7 +282,7 @@ export default function RoomList() {
                                     );
                                 }) : (
                                     <tr>
-                                        <td colSpan={3} className="text-center py-8 text-gray-400">
+                                        <td colSpan={isCoordinator ? 4 : 3} className="text-center py-8 text-gray-400">
                                             No rooms match your filter criteria.
                                         </td>
                                     </tr>

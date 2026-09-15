@@ -129,5 +129,12 @@ INSERT INTO course_schedule (schedule_id, course_id, batch_id, room_number, slot
 (2, 102, 202, 'UB102', 14),  -- OS in UB102, Day 2 (Tue) 11:00
 (3, 103, 203, 'UB201', 27);  -- AI in UB201, Day 3 (Wed) 14:00
 
+-- 6. Seed Administrative & Viewer Staff Users
+-- Passwords: 'Coordinator@123' and 'Viewer@123' (bcrypt hashed, 10 rounds)
+INSERT INTO users (id, name, email, password_hash, role) VALUES
+(1, 'Department Coordinator', 'coordinator@college.edu', '$2b$10$h65xwOUqjjmH2o5whwcIg.pDnTzBEYc70u5pCu3SuqVrbqRC2KUJW', 'coordinator'),
+(2, 'Department Viewer', 'viewer@college.edu', '$2b$10$IkNvVsw/xnD2fwJzIjzKp.sT5pbU30ioPl9wPv1Jto6LHmF0GF7pi', 'viewer');
+
 -- Re-enable foreign key checks
 SET FOREIGN_KEY_CHECKS = 1;
+

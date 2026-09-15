@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, Calendar, TrendingUp, CheckCircle } from 'lucide-react';
+import { Calendar, TrendingUp } from 'lucide-react';
 import { fetchUtilizationReport, fetchFreeRooms, fetchSchedules, fetchRooms } from '../lib/api';
 
 interface Stats {

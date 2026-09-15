@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import db from './db.js';
 
 import path from 'path';
@@ -10,19 +11,47 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-
 const app = express();
 const port = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'clus_jwt_dev_secret_key_2026';
 
 app.use(cors());
 app.use(express.json());
 
 // ==========================================
+// Authentication & Authorization Middleware
+// ==========================================
+
+export function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Format: Bearer <token>
+
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required. Missing token.' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(401).json({ error: 'Invalid or expired token.' });
+    }
+    req.user = user; // { id, name, email, role }
+    next();
+  });
+}
+
+export function requireCoordinator(req, res, next) {
+  if (!req.user || req.user.role !== 'coordinator') {
+    return res.status(403).json({ error: 'Forbidden: Coordinator privileges required.' });
+  }
+  next();
+}
+
+// ==========================================
 // Basic CRUD Routes
 // ==========================================
 
-// Get all rooms
-app.get('/api/rooms', async (req, res) => {
+// Get all rooms (Authenticated: Coordinator & Viewer)
+app.get('/api/rooms', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT 
@@ -42,8 +71,8 @@ app.get('/api/rooms', async (req, res) => {
   }
 });
 
-// Get all schedules (using the View)
-app.get('/api/schedules', async (req, res) => {
+// Get all schedules (Authenticated: Coordinator & Viewer)
+app.get('/api/schedules', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM View_Detailed_Schedule ORDER BY day_of_week DESC, start_time');
     res.json(rows);
@@ -52,8 +81,8 @@ app.get('/api/schedules', async (req, res) => {
   }
 });
 
-// Get all courses
-app.get('/api/courses', async (req, res) => {
+// Get all courses (Authenticated: Coordinator & Viewer)
+app.get('/api/courses', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM Course');
     res.json(rows);
@@ -62,8 +91,8 @@ app.get('/api/courses', async (req, res) => {
   }
 });
 
-// Get all batches
-app.get('/api/batches', async (req, res) => {
+// Get all batches (Authenticated: Coordinator & Viewer)
+app.get('/api/batches', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM Batch');
     res.json(rows);
@@ -72,8 +101,8 @@ app.get('/api/batches', async (req, res) => {
   }
 });
 
-// Get all time slots
-app.get('/api/timeslots', async (req, res) => {
+// Get all time slots (Authenticated: Coordinator & Viewer)
+app.get('/api/timeslots', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM Time_Slot ORDER BY day_of_week DESC, start_time');
     res.json(rows);
@@ -82,8 +111,8 @@ app.get('/api/timeslots', async (req, res) => {
   }
 });
 
-// Allocate a Room (Invokes trigger implicitly)
-app.post('/api/schedules', async (req, res) => {
+// Allocate a Room (Coordinator only)
+app.post('/api/schedules', authenticateToken, requireCoordinator, async (req, res) => {
   const { course_id, batch_id, room_number, slot_id } = req.body;
   try {
     const [result] = await db.query(
@@ -92,13 +121,12 @@ app.post('/api/schedules', async (req, res) => {
     );
     res.status(201).json({ success: true, schedule_id: result.insertId });
   } catch (err) {
-    // MySQL trigger errors (like capacity or double booking) will be caught here
     res.status(400).json({ error: err.message });
   }
 });
 
-// Delete a Schedule
-app.delete('/api/schedules/:id', async (req, res) => {
+// Delete a Schedule (Coordinator only)
+app.delete('/api/schedules/:id', authenticateToken, requireCoordinator, async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await db.query('DELETE FROM Course_Schedule WHERE schedule_id = ?', [id]);
@@ -108,8 +136,8 @@ app.delete('/api/schedules/:id', async (req, res) => {
   }
 });
 
-// Add a Room
-app.post('/api/rooms', async (req, res) => {
+// Add a Room (Coordinator only)
+app.post('/api/rooms', authenticateToken, requireCoordinator, async (req, res) => {
   const { room_number, room_type, capacity } = req.body;
   try {
     const [result] = await db.query(
@@ -122,8 +150,8 @@ app.post('/api/rooms', async (req, res) => {
   }
 });
 
-// Delete a Room
-app.delete('/api/rooms/:room_number', async (req, res) => {
+// Delete a Room (Coordinator only)
+app.delete('/api/rooms/:room_number', authenticateToken, requireCoordinator, async (req, res) => {
   const { room_number } = req.params;
   try {
     const [result] = await db.query('DELETE FROM Room WHERE room_number = ?', [room_number]);
@@ -133,8 +161,8 @@ app.delete('/api/rooms/:room_number', async (req, res) => {
   }
 });
 
-// Add a Batch
-app.post('/api/batches', async (req, res) => {
+// Add a Batch (Coordinator only)
+app.post('/api/batches', authenticateToken, requireCoordinator, async (req, res) => {
   const { batch_id, year_of_study, section, student_count, dept_id } = req.body;
   try {
     const [result] = await db.query(
@@ -147,8 +175,8 @@ app.post('/api/batches', async (req, res) => {
   }
 });
 
-// Delete a Batch
-app.delete('/api/batches/:id', async (req, res) => {
+// Delete a Batch (Coordinator only)
+app.delete('/api/batches/:id', authenticateToken, requireCoordinator, async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await db.query('DELETE FROM Batch WHERE batch_id = ?', [id]);
@@ -162,8 +190,8 @@ app.delete('/api/batches/:id', async (req, res) => {
 // Advanced DBMS Concept Routes
 // ==========================================
 
-// Room Utilization Analysis (View)
-app.get('/api/reports/utilization', async (req, res) => {
+// Room Utilization Analysis (Authenticated: Coordinator & Viewer)
+app.get('/api/reports/utilization', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT 
@@ -181,8 +209,8 @@ app.get('/api/reports/utilization', async (req, res) => {
   }
 });
 
-// Free Rooms Analysis (EXCEPT equivalent - Not IN)
-app.get('/api/reports/free-rooms', async (req, res) => {
+// Free Rooms Analysis (Authenticated: Coordinator & Viewer)
+app.get('/api/reports/free-rooms', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT room_number, room_type, capacity 
@@ -195,8 +223,8 @@ app.get('/api/reports/free-rooms', async (req, res) => {
   }
 });
 
-// Empty Time Slots (RIGHT JOIN equivalent)
-app.get('/api/reports/empty-slots', async (req, res) => {
+// Empty Time Slots (Authenticated: Coordinator & Viewer)
+app.get('/api/reports/empty-slots', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT 
@@ -218,11 +246,11 @@ app.get('/api/reports/empty-slots', async (req, res) => {
 });
 
 // ==========================================
-// Advanced Analytics Routes (From Documentation)
+// Advanced Analytics Routes
 // ==========================================
 
-// 1. Department Course Load (Aggregate/Left Join)
-app.get('/api/analytics/department-course-load', async (req, res) => {
+// 1. Department Course Load (Authenticated: Coordinator & Viewer)
+app.get('/api/analytics/department-course-load', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT d.dept_name, COUNT(c.course_id) AS total_courses
@@ -238,10 +266,8 @@ app.get('/api/analytics/department-course-load', async (req, res) => {
   }
 });
 
-
-
-// 3. Unscheduled Courses (Left Join / Null check)
-app.get('/api/analytics/unscheduled-courses', async (req, res) => {
+// 3. Unscheduled Courses (Authenticated: Coordinator & Viewer)
+app.get('/api/analytics/unscheduled-courses', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT c.course_code, c.course_name 
@@ -255,8 +281,8 @@ app.get('/api/analytics/unscheduled-courses', async (req, res) => {
   }
 });
 
-// 4. Room Saturation Risk (Correlated Subquery)
-app.get('/api/analytics/room-saturation', async (req, res) => {
+// 4. Room Saturation Risk (Authenticated: Coordinator & Viewer)
+app.get('/api/analytics/room-saturation', authenticateToken, async (req, res) => {
   try {
     const minSaturation = parseFloat(req.query.min_saturation) || 0.90;
     const [rows] = await db.query(`
@@ -275,8 +301,8 @@ app.get('/api/analytics/room-saturation', async (req, res) => {
   }
 });
 
-// 5. Infrastructure Averages (View join)
-app.get('/api/analytics/infrastructure-averages', async (req, res) => {
+// 5. Infrastructure Averages (Authenticated: Coordinator & Viewer)
+app.get('/api/analytics/infrastructure-averages', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT r.room_type, AVG(v.slots_used) as avg_utilized_slots
@@ -290,8 +316,8 @@ app.get('/api/analytics/infrastructure-averages', async (req, res) => {
   }
 });
 
-// 6. Trigger Troubleshooting (Mathematical calculation on physical limits)
-app.get('/api/analytics/trigger-troubleshooting', async (req, res) => {
+// 6. Trigger Troubleshooting (Authenticated: Coordinator & Viewer)
+app.get('/api/analytics/trigger-troubleshooting', authenticateToken, async (req, res) => {
   try {
     const batchId = parseInt(req.query.batch_id) || 201;
     const roomNumber = req.query.room_number || 'UB102';
@@ -310,8 +336,8 @@ app.get('/api/analytics/trigger-troubleshooting', async (req, res) => {
   }
 });
 
-// 7. Infrastructure Sorting (Calling Stored Function inside Select)
-app.get('/api/analytics/infrastructure-sorting', async (req, res) => {
+// 7. Infrastructure Sorting (Authenticated: Coordinator & Viewer)
+app.get('/api/analytics/infrastructure-sorting', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT room_number, room_type, get_utilization_percent(room_number) AS current_util_percent 
@@ -324,17 +350,12 @@ app.get('/api/analytics/infrastructure-sorting', async (req, res) => {
   }
 });
 
-// 8. Trapped Capacity (Extracting Intelligence from Cursor Temp Table)
-app.get('/api/analytics/trapped-capacity', async (req, res) => {
+// 8. Trapped Capacity (Authenticated: Coordinator & Viewer)
+app.get('/api/analytics/trapped-capacity', authenticateToken, async (req, res) => {
   let connection;
   try {
-    // We MUST execute the procedural cursor first in the same connection session!
     connection = await db.getConnection();
-    
-    // Step 1: Execute Cursor to generate Temp_Room_Report natively
     await connection.query('CALL evaluate_room_usage()');
-    
-    // Step 2: Run the analytical query against that freshly populated temp table
     const [rows] = await connection.query(`
       SELECT t.status, SUM(r.capacity) as trapped_capacity_seats
       FROM Temp_Room_Report t
@@ -342,7 +363,6 @@ app.get('/api/analytics/trapped-capacity', async (req, res) => {
       WHERE t.status = 'Underutilized'
       GROUP BY t.status;
     `);
-    
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -351,12 +371,11 @@ app.get('/api/analytics/trapped-capacity', async (req, res) => {
   }
 });
 
-
 // ==========================================
 // Advanced Analytics Extensions
 // ==========================================
 
-app.get('/api/advanced-analytics/unified-utilization', async (req, res) => {
+app.get('/api/advanced-analytics/unified-utilization', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM UnifiedUtilizationView ORDER BY room_number');
     res.json(rows);
@@ -365,7 +384,7 @@ app.get('/api/advanced-analytics/unified-utilization', async (req, res) => {
   }
 });
 
-app.get('/api/advanced-analytics/wasted-capacity', async (req, res) => {
+app.get('/api/advanced-analytics/wasted-capacity', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM WastedCapacityView ORDER BY wasted_seats DESC');
     res.json(rows);
@@ -374,7 +393,7 @@ app.get('/api/advanced-analytics/wasted-capacity', async (req, res) => {
   }
 });
 
-app.get('/api/advanced-analytics/temporal-stress', async (req, res) => {
+app.get('/api/advanced-analytics/temporal-stress', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM TemporalStressIndex ORDER BY day_of_week, start_time');
     res.json(rows);
@@ -383,7 +402,7 @@ app.get('/api/advanced-analytics/temporal-stress', async (req, res) => {
   }
 });
 
-app.get('/api/advanced-analytics/imbalance', async (req, res) => {
+app.get('/api/advanced-analytics/imbalance', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM UtilizationImbalance ORDER BY day_of_week');
     res.json(rows);
@@ -392,7 +411,7 @@ app.get('/api/advanced-analytics/imbalance', async (req, res) => {
   }
 });
 
-app.get('/api/advanced-analytics/mismatch', async (req, res) => {
+app.get('/api/advanced-analytics/mismatch', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM CapacityMismatchAnalysis ORDER BY penalty_score ASC');
     res.json(rows);
@@ -401,7 +420,7 @@ app.get('/api/advanced-analytics/mismatch', async (req, res) => {
   }
 });
 
-app.get('/api/advanced-analytics/signals', async (req, res) => {
+app.get('/api/advanced-analytics/signals', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM ActionableAnalyticsSignals ORDER BY severity_score DESC');
     res.json(rows);
@@ -410,7 +429,7 @@ app.get('/api/advanced-analytics/signals', async (req, res) => {
   }
 });
 
-app.get('/api/advanced-analytics/efficiency-score', async (req, res) => {
+app.get('/api/advanced-analytics/efficiency-score', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT calculate_system_efficiency_score() AS efficiency_score');
     res.json(rows[0]);
@@ -419,12 +438,10 @@ app.get('/api/advanced-analytics/efficiency-score', async (req, res) => {
   }
 });
 
-
-// Call evaluate_room_usage Cursor Procedure
-app.get('/api/reports/cursor-evaluation', async (req, res) => {
+// Call evaluate_room_usage Cursor Procedure (Authenticated: Coordinator & Viewer)
+app.get('/api/reports/cursor-evaluation', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('CALL evaluate_room_usage()');
-    // Result from a CALL is an array of result sets; the first element is the temp table selection
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -432,34 +449,10 @@ app.get('/api/reports/cursor-evaluation', async (req, res) => {
 });
 
 // ==========================================
-// Authentication Routes
+// Authentication & Staff User Management
 // ==========================================
 
-// Sign Up
-app.post('/api/auth/signup', async (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password are required.' });
-  }
-  try {
-    // Check if email already exists
-    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'An account with this email already exists.' });
-    }
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(password, salt);
-    const [result] = await db.query(
-      'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-      [name, email, password_hash]
-    );
-    res.status(201).json({ user: { id: result.insertId, name, email } });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Sign In
+// Sign In (Public)
 app.post('/api/auth/signin', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -475,7 +468,56 @@ app.post('/api/auth/signin', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
-    res.json({ user: { id: user.id, name: user.name, email: user.email } });
+
+    const token = jwt.sign(
+      { id: user.id, name: user.name, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      token
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List Users (Coordinator only)
+app.get('/api/users', authenticateToken, requireCoordinator, async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Provision User (Coordinator only)
+app.post('/api/users', authenticateToken, requireCoordinator, async (req, res) => {
+  const { name, email, password, role } = req.body;
+  if (!name || !email || !password || !role) {
+    return res.status(400).json({ error: 'Name, email, password, and role are required.' });
+  }
+  if (!['coordinator', 'viewer'].includes(role)) {
+    return res.status(400).json({ error: 'Role must be either "coordinator" or "viewer".' });
+  }
+  try {
+    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'A staff user with this email already exists.' });
+    }
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+    const [result] = await db.query(
+      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+      [name, email, password_hash, role]
+    );
+    res.status(201).json({
+      success: true,
+      user: { id: result.insertId, name, email, role }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -484,3 +526,4 @@ app.post('/api/auth/signin', async (req, res) => {
 app.listen(port, '0.0.0.0', () => {
   console.log(`Classroom Utilization Node.js/Express server running on port ${port} (exposed to network)`);
 });
+

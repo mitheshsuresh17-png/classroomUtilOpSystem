@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchBatches, createBatch, deleteBatch } from '../lib/api';
-import { Users, Filter, Search, Plus, Trash2 } from 'lucide-react';
+import { Users, Search, Plus, Trash2, Eye } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Batch {
     batch_id: string;
@@ -11,6 +12,9 @@ interface Batch {
 }
 
 export default function BatchList() {
+    const { user } = useAuth();
+    const isCoordinator = user?.role === 'coordinator';
+
     const [batches, setBatches] = useState<Batch[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -78,18 +82,25 @@ export default function BatchList() {
 
     return (
         <div className="space-y-5">
-            {/* Add New Header / Form */}
+            {/* Header & Role Notice */}
             <div className="flex items-center justify-between">
-                <button 
-                    onClick={() => setShowForm(!showForm)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
-                >
-                    <Plus className={`w-4 h-4 transition-transform ${showForm ? 'rotate-45' : ''}`} />
-                    {showForm ? 'Cancel' : 'Add New Batch'}
-                </button>
+                {isCoordinator ? (
+                    <button 
+                        onClick={() => setShowForm(!showForm)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
+                    >
+                        <Plus className={`w-4 h-4 transition-transform ${showForm ? 'rotate-45' : ''}`} />
+                        {showForm ? 'Cancel' : 'Add New Batch'}
+                    </button>
+                ) : (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium rounded-xl">
+                        <Eye className="w-3.5 h-3.5 text-slate-500" />
+                        Viewer Mode — Batch creation and deletion restricted to Coordinators
+                    </div>
+                )}
             </div>
 
-            {showForm && (
+            {isCoordinator && showForm && (
                 <div className="card p-5 animate-fade-up">
                     <h2 className="text-lg font-bold text-gray-800 mb-4">Create New Batch</h2>
                     {errorMsg && <div className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm">{errorMsg}</div>}
@@ -111,15 +122,15 @@ export default function BatchList() {
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Section</label>
-                            <input required type="text" maxLength={1} className="w-full border border-gray-200 rounded-xl p-2.5 text-sm uppercase" value={form.section} onChange={e => setForm({...form, section: e.target.value.toUpperCase()})} />
+                            <input required maxLength={1} type="text" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm uppercase" value={form.section} onChange={e => setForm({...form, section: e.target.value.toUpperCase()})} />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Student Count</label>
-                            <input required type="number" min="1" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.student_count} onChange={e => setForm({...form, student_count: e.target.value})} />
+                            <input required min="1" type="number" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.student_count} onChange={e => setForm({...form, student_count: e.target.value})} />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Dept ID</label>
-                            <input required type="number" min="1" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.dept_id} onChange={e => setForm({...form, dept_id: e.target.value})} />
+                            <input required type="number" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.dept_id} onChange={e => setForm({...form, dept_id: e.target.value})} />
                         </div>
                         <div className="md:col-span-5 mt-2">
                             <button type="submit" className="px-5 py-2.5 bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-md">Create Batch</button>
@@ -128,38 +139,28 @@ export default function BatchList() {
                 </div>
             )}
 
-            {/* Filters Card */}
+            {/* Directory Card */}
             <div className="card p-5 animate-fade-up">
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 bg-gray-50 rounded-lg">
-                        <Filter className="text-gray-500 w-4 h-4" />
-                    </div>
-                    <h3 className="font-bold text-gray-800">Filter Batches</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Search */}
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by Year or Section..."
-                            className="pl-10 w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Batch List Table */}
-            <div className="card animate-fade-up" style={{ animationDelay: '100ms' }}>
-                <div className="card-header flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                     <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-gray-400" />
+                        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                            <Users className="w-4 h-4" />
+                        </div>
                         <h2 className="text-lg font-bold text-gray-800">Batch Directory</h2>
                     </div>
-                    <span className="text-xs text-gray-400 font-medium bg-gray-50 px-3 py-1 rounded-lg">{filteredBatches.length} batches</span>
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by section/year..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-9 pr-3 py-1.5 border border-gray-200 rounded-xl text-xs bg-gray-50 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors w-48"
+                            />
+                        </div>
+                        <span className="text-xs text-gray-400 font-medium bg-gray-50 px-3 py-1 rounded-lg">{filteredBatches.length} batches</span>
+                    </div>
                 </div>
                 
                 {loading ? (
@@ -179,7 +180,7 @@ export default function BatchList() {
                                     <th>Section</th>
                                     <th>Student Count</th>
                                     <th>Dept ID</th>
-                                    <th></th>
+                                    {isCoordinator && <th></th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -194,19 +195,22 @@ export default function BatchList() {
                                         <td className="font-semibold text-gray-800">{batch.section}</td>
                                         <td className="font-medium text-blue-600">{batch.student_count} Students</td>
                                         <td className="text-gray-500 font-mono text-sm">{batch.dept_id}</td>
-                                        <td className="text-right">
-                                            <button 
-                                                onClick={() => handleDelete(batch.batch_id.toString())}
-                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Delete Batch"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </td>
+                                        {isCoordinator && (
+                                            <td className="text-right">
+                                                <button 
+                                                    onClick={() => handleDelete(batch.batch_id.toString())}
+                                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Delete Batch"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
-                                )) : (
+                                )) : null}
+                                {filteredBatches.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-8 text-gray-400">
+                                        <td colSpan={isCoordinator ? 6 : 5} className="text-center py-8 text-gray-400">
                                             No batches match your filter criteria.
                                         </td>
                                     </tr>
