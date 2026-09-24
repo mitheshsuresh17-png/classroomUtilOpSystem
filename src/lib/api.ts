@@ -283,6 +283,16 @@ export const createRoom = async (roomData: any) => {
     return data;
 };
 
+export const updateRoom = async (roomNumber: string, roomData: { room_type: string; capacity: number }) => {
+    const res = await authFetch(`/rooms/${roomNumber}`, {
+        method: 'PUT',
+        body: JSON.stringify(roomData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update room');
+    return data;
+};
+
 export const createBatch = async (batchData: any) => {
     const res = await authFetch('/batches', {
         method: 'POST',
@@ -290,6 +300,26 @@ export const createBatch = async (batchData: any) => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to create batch');
+    return data;
+};
+
+export const updateBatch = async (batchId: number | string, batchData: { year_of_study: number; section: string; student_count: number; dept_id: number }) => {
+    const res = await authFetch(`/batches/${batchId}`, {
+        method: 'PUT',
+        body: JSON.stringify(batchData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update batch');
+    return data;
+};
+
+export const updateSchedule = async (scheduleId: number | string, scheduleData: SchedulePayload) => {
+    const res = await authFetch(`/schedules/${scheduleId}`, {
+        method: 'PUT',
+        body: JSON.stringify(scheduleData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update schedule');
     return data;
 };
 

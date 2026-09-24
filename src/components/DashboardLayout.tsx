@@ -13,7 +13,7 @@ import {
   LayoutDashboard, Calendar, Building2,
   LogOut, Users, ChevronDown, Menu, X,
   ShieldCheck, UserPlus, Eye, CheckCircle2, AlertCircle, RefreshCw,
-  BookOpen, Building
+  BookOpen, Building, BarChart3
 } from 'lucide-react';
 
 const tabs = [
@@ -23,6 +23,7 @@ const tabs = [
   { id: 'batches', label: 'Batches', icon: Users },
   { id: 'courses', label: 'Courses', icon: BookOpen },
   { id: 'departments', label: 'Departments', icon: Building },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
 export default function DashboardLayout() {

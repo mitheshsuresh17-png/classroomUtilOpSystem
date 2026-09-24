@@ -283,7 +283,28 @@ app.post('/api/schedules', authenticateToken, requireCoordinator, async (req, re
     );
     res.status(201).json({ success: true, schedule_id: result.insertId });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: err.sqlMessage || err.message });
+  }
+});
+
+// Update a Schedule in place (Coordinator only)
+app.put('/api/schedules/:schedule_id', authenticateToken, requireCoordinator, async (req, res) => {
+  const { schedule_id } = req.params;
+  const { course_id, batch_id, room_number, slot_id } = req.body;
+  if (!course_id || !batch_id || !room_number || !slot_id) {
+    return res.status(400).json({ error: 'Course, Batch, Room, and Time Slot are all required.' });
+  }
+  try {
+    const [result] = await db.query(
+      'UPDATE Course_Schedule SET course_id = ?, batch_id = ?, room_number = ?, slot_id = ? WHERE schedule_id = ?',
+      [Number(course_id), Number(batch_id), room_number, Number(slot_id), Number(schedule_id)]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: `Schedule record #${schedule_id} not found.` });
+    }
+    res.json({ success: true, updated: result.affectedRows });
+  } catch (err) {
+    res.status(400).json({ error: err.sqlMessage || err.message });
   }
 });
 
@@ -308,7 +329,28 @@ app.post('/api/rooms', authenticateToken, requireCoordinator, async (req, res) =
     );
     res.status(201).json({ success: true });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: err.sqlMessage || err.message });
+  }
+});
+
+// Update a Room in place (Coordinator only)
+app.put('/api/rooms/:room_number', authenticateToken, requireCoordinator, async (req, res) => {
+  const { room_number } = req.params;
+  const { room_type, capacity } = req.body;
+  if (!room_type || !capacity || Number(capacity) <= 0) {
+    return res.status(400).json({ error: 'Valid room type and positive capacity are required.' });
+  }
+  try {
+    const [result] = await db.query(
+      'UPDATE Room SET room_type = ?, capacity = ? WHERE room_number = ?',
+      [room_type, Number(capacity), room_number]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: `Room ${room_number} not found.` });
+    }
+    res.json({ success: true, updated: result.affectedRows });
+  } catch (err) {
+    res.status(400).json({ error: err.sqlMessage || err.message });
   }
 });
 
@@ -342,6 +384,34 @@ app.post('/api/batches', authenticateToken, requireCoordinator, async (req, res)
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ error: `Batch with ID #${batch_id} or Year ${year_of_study} Section ${section} already exists in this department.` });
+    }
+    res.status(400).json({ error: err.sqlMessage || err.message });
+  }
+});
+
+// Update a Batch in place (Coordinator only)
+app.put('/api/batches/:batch_id', authenticateToken, requireCoordinator, async (req, res) => {
+  const { batch_id } = req.params;
+  const { year_of_study, section, student_count, dept_id } = req.body;
+  if (!year_of_study || !section || !student_count || !dept_id) {
+    return res.status(400).json({ error: 'Year of study, section, student count, and department are required.' });
+  }
+  try {
+    const [deptRows] = await db.query('SELECT dept_id FROM Department WHERE dept_id = ?', [dept_id]);
+    if (deptRows.length === 0) {
+      return res.status(400).json({ error: `Selected department (ID: ${dept_id}) does not exist.` });
+    }
+    const [result] = await db.query(
+      'UPDATE Batch SET year_of_study = ?, section = ?, student_count = ?, dept_id = ? WHERE batch_id = ?',
+      [Number(year_of_study), section.trim().toUpperCase(), Number(student_count), Number(dept_id), Number(batch_id)]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: `Batch #${batch_id} not found.` });
+    }
+    res.json({ success: true, updated: result.affectedRows });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: `Year ${year_of_study} Section ${section} already exists in this department.` });
     }
     res.status(400).json({ error: err.sqlMessage || err.message });
   }

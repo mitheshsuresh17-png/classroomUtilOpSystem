@@ -167,7 +167,7 @@ export default function AnalyticsView() {
                           Severity {signal.severity_score}
                         </span>
                       </div>
-                      <p className={`text-xs font-medium opacity-80 ${textClass}`}>{signal.description}</p>
+                      <p className={`text-xs font-medium opacity-80 ${textClass}`}>{signal.message}</p>
                     </div>
                   </div>
                 );
@@ -189,7 +189,7 @@ export default function AnalyticsView() {
           </div>
         </div>
 
-        {mismatches.filter(m => m.mismatch_status !== 'Optimal').length === 0 ? (
+        {mismatches.filter(m => m.mismatch_severity && m.mismatch_severity !== 'Optimal').length === 0 ? (
           <div className="text-center text-sm font-medium text-gray-400 py-10 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
             No severe allocation mismatches detected natively by SQL cursor.
           </div>
@@ -204,8 +204,9 @@ export default function AnalyticsView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100/80">
-                {mismatches.filter(m => m.mismatch_status !== 'Optimal').slice(0, 10).map((m, i) => {
-                  const isOvercrowded = m.mismatch_status.includes('Overcrowded');
+                {mismatches.filter(m => m.mismatch_severity && m.mismatch_severity !== 'Optimal').slice(0, 10).map((m, i) => {
+                  const isOvercrowded = m.mismatch_severity.includes('Overcrowd');
+                  const fillPct = m.room_cap > 0 ? Math.round((m.batch_size / m.room_cap) * 100) : 0;
                   return (
                     <tr key={i} className="group hover:bg-gray-50/50 transition-colors">
                       <td className="py-4 pr-4">
@@ -215,21 +216,21 @@ export default function AnalyticsView() {
                           </div>
                           <div>
                             <div className="text-sm font-bold text-gray-800">Day {m.day_of_week}</div>
-                            <div className="text-[11px] font-semibold text-gray-400">{m.start_time}</div>
+                            <div className="text-[11px] font-semibold text-gray-400">{m.start_time ? m.start_time.substring(0, 5) : ''}</div>
                           </div>
                         </div>
                       </td>
                       <td className="py-4 pr-4">
                         <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${isOvercrowded ? 'bg-rose-100/50 text-rose-700' : 'bg-indigo-100/50 text-indigo-700'}`}>
                           {isOvercrowded ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                          {m.mismatch_status}
+                          {m.mismatch_severity}
                         </div>
                       </td>
                       <td className="py-4">
                         <div className="flex items-center gap-4 text-xs font-medium text-gray-600">
                           <div className="flex flex-col">
                             <span className="text-gray-400 text-[10px] uppercase tracking-wider mb-0.5">Capacity</span>
-                            <span className="text-gray-800 font-bold">{m.room_capacity} seats</span>
+                            <span className="text-gray-800 font-bold">{m.room_cap} seats</span>
                           </div>
                           <ArrowRight className="w-3 h-3 text-gray-300" />
                           <div className="flex flex-col">
@@ -237,8 +238,8 @@ export default function AnalyticsView() {
                             <span className={`font-bold ${isOvercrowded ? 'text-rose-600' : 'text-gray-800'}`}>{m.batch_size} students</span>
                           </div>
                           <div className="ml-auto">
-                            <span className="px-2 py-1 bg-gray-100 rounded text-[10px] font-bold text-gray-500">
-                              {Number(m.fill_percentage).toFixed(0)}% Fill
+                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${fillPct > 100 ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {fillPct}% Fill
                             </span>
                           </div>
                         </div>
@@ -271,23 +272,23 @@ export default function AnalyticsView() {
             {wastedCapacity.length === 0 ? (
               <div className="text-center text-sm font-medium text-gray-400 py-10">No trapped capacity algorithms resolved data.</div>
             ) : (
-              wastedCapacity.filter(w => w.trapped_capacity > 0).slice(0,8).map((waste, i) => (
+              wastedCapacity.filter(w => Number(w.wasted_seats) > 0).slice(0, 8).map((waste, i) => (
                 <div key={i} className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-white transition-colors group">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 shadow-sm shrink-0">
                       <BarChart className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-gray-800 truncate">{waste.course_name}</h4>
+                      <h4 className="text-sm font-bold text-gray-800 truncate">Section {waste.batch_section} (Batch Size: {waste.batch_size})</h4>
                       <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5 font-medium">
-                        <span className="text-purple-600 font-semibold">{waste.room_number}</span>
+                        <span className="text-purple-600 font-semibold">{waste.room_number} (Cap: {waste.room_capacity})</span>
                         <span>•</span>
-                        <span>Day {waste.day_of_week} ({waste.start_time.substring(0,5)})</span>
+                        <span>Day {waste.day_of_week} ({waste.start_time ? waste.start_time.substring(0,5) : ''} - {waste.end_time ? waste.end_time.substring(0,5) : ''})</span>
                       </div>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-sm font-black text-rose-500">{waste.trapped_capacity} seats</div>
+                    <div className="text-sm font-black text-rose-500">{waste.wasted_seats} seats</div>
                     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">Wasted</div>
                   </div>
                 </div>
@@ -313,14 +314,14 @@ export default function AnalyticsView() {
               <div className="text-center text-sm font-medium text-gray-400 py-10">No temporal stress periods isolated.</div>
             ) : (
               temporalStress.map((stress, i) => {
-                const ratio = Number(stress.stress_ratio_percent);
+                const ratio = Number(stress.network_congestion_percent || 0);
                 const isHigh = ratio > 80;
                 return (
                   <div key={i} className="flex flex-col gap-2 p-3.5 rounded-2xl border border-gray-100 bg-gray-50/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
                         <span className="w-6 h-6 rounded-md bg-gray-200 flex items-center justify-center text-[10px]">{stress.day_of_week}</span>
-                        <span>{stress.start_time.substring(0, 5)} - {stress.end_time.substring(0, 5)}</span>
+                        <span>{stress.start_time ? stress.start_time.substring(0, 5) : ''} - {stress.end_time ? stress.end_time.substring(0, 5) : ''}</span>
                       </div>
                       <span className={`text-xs font-black ${isHigh ? 'text-rose-500' : 'text-gray-500'}`}>
                         {ratio.toFixed(1)}% Load
@@ -334,7 +335,7 @@ export default function AnalyticsView() {
                       />
                     </div>
                     <p className="text-[10px] text-gray-400 font-medium">
-                      {stress.active_rooms} out of {stress.total_rooms} rooms occupied
+                      {stress.concurrent_classes} out of {stress.total_rooms} rooms occupied
                     </p>
                   </div>
                 );

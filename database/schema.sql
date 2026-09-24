@@ -378,6 +378,8 @@ SELECT
     r.room_number,
     b.section as batch_section,
     ts.day_of_week,
+    ts.start_time,
+    ts.end_time,
     r.capacity as room_capacity,
     b.student_count as batch_size,
     (r.capacity - b.student_count) as wasted_seats
@@ -392,12 +394,13 @@ CREATE OR REPLACE VIEW TemporalStressIndex AS
 SELECT 
     ts.day_of_week,
     ts.start_time,
+    ts.end_time,
     COUNT(cs.schedule_id) as concurrent_classes,
     (SELECT COUNT(*) FROM Room) as total_rooms,
     ROUND((COUNT(cs.schedule_id) / (SELECT COUNT(*) FROM Room)) * 100, 2) as network_congestion_percent
 FROM Time_Slot ts
 LEFT JOIN Course_Schedule cs ON ts.slot_id = cs.slot_id
-GROUP BY ts.day_of_week, ts.start_time
+GROUP BY ts.day_of_week, ts.start_time, ts.end_time
 ORDER BY ts.day_of_week, ts.start_time;
 
 -- View: Capacity Mismatch Analysis
