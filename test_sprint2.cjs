@@ -4,12 +4,12 @@ const mysql = require('./server/node_modules/mysql2/promise');
 const path = require('path');
 require('./server/node_modules/dotenv').config({ path: path.join(__dirname, 'server', '.env') });
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://localhost:5005/api';
 
 function request(endpoint, options = {}) {
   return new Promise((resolve, reject) => {
     const cleanPath = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-    const url = new URL(cleanPath, 'http://localhost:5000/api/');
+    const url = new URL(cleanPath, 'http://localhost:5005/api/');
     const reqOptions = {
       hostname: url.hostname,
       port: url.port,
