@@ -1,0 +1,97 @@
+# Implementation Plan — Sprint 2: Data Integrity for Real Use
+
+## Goal Description
+Implement Sprint 2 per [CLUS_development_spec.md](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/CLUS_development_spec.md), focusing on data integrity, cascade delete protections, automated audit trails, dynamic capacity validation triggers on updates, and full UI/API management for Departments and Courses.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Key Decisions in Sprint 2:**
+> 1. **Audit Columns**: `Course_Schedule` will include `created_by` (linking to `users.id`) and `updated_at` (auto-updated timestamp).
+> 2. **Integrity Triggers**:
+>    - `Course_Schedule` `BEFORE UPDATE`: prevents double-booking room/batch or assigning an oversized batch on schedule edits.
+>    - `Room` `BEFORE UPDATE`: prevents reducing a room's capacity below any batch currently scheduled in it.
+>    - `Batch` `BEFORE UPDATE`: prevents increasing a batch's student count above any room's capacity it is currently scheduled in.
+> 3. **Cascade Impact Preview**: Before deleting a Department, Batch, or Room, the UI will query an impact preview endpoint (`/api/departments/:id/impact`, etc.) and present a modal detailing exact counts of dependent records (e.g., "Deleting Department CS will delete 4 courses, 3 batches, and 8 scheduled classes") before asking for explicit confirmation.
+> 4. **Department & Course Management UI**: Dedicated tabs in the dashboard with full coordinator management (create, delete, list) and viewer read-only protection.
+
+---
+
+## Proposed Changes
+
+### 1. Database Schema & Triggers
+
+#### [MODIFY] [database/schema.sql](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/database/schema.sql)
+- Add `created_by INT NULL, FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL` and `updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` to `Course_Schedule`.
+- Add `trg_check_schedule_update` (`BEFORE UPDATE ON Course_Schedule`): checks room/batch slot conflicts (excluding current `schedule_id`) and capacity constraint.
+- Add `trg_check_room_capacity_update` (`BEFORE UPDATE ON Room`): signals error if `NEW.capacity < (SELECT MAX(b.student_count) FROM Course_Schedule cs JOIN Batch b ON cs.batch_id = b.batch_id WHERE cs.room_number = NEW.room_number)`.
+- Add `trg_check_batch_size_update` (`BEFORE UPDATE ON Batch`): signals error if `NEW.student_count > (SELECT MIN(r.capacity) FROM Course_Schedule cs JOIN Room r ON cs.room_number = r.room_number WHERE cs.batch_id = NEW.batch_id)`.
+
+#### [MODIFY] [database/seed.sql](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/database/seed.sql)
+- Populate `created_by` with the seed coordinator ID for initial schedules.
+
+---
+
+### 2. Backend API & Routes
+
+#### [MODIFY] [server/index.js](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/server/index.js)
+- **Department Routes**:
+  - `GET /api/departments` (Viewer/Coordinator)
+  - `POST /api/departments` (Coordinator only)
+  - `GET /api/departments/:dept_id/impact` (Returns count of dependent courses, batches, and schedules)
+  - `DELETE /api/departments/:dept_id` (Coordinator only)
+- **Course Routes**:
+  - `GET /api/courses` (Viewer/Coordinator)
+  - `POST /api/courses` (Coordinator only)
+  - `GET /api/courses/:course_id/impact` (Returns count of dependent schedules)
+  - `DELETE /api/courses/:course_id` (Coordinator only)
+- **Impact Routes for Rooms and Batches**:
+  - `GET /api/rooms/:room_number/impact` (Returns count of dependent schedules)
+  - `GET /api/batches/:batch_id/impact` (Returns count of dependent schedules)
+- **Course Schedule Audit Trail**:
+  - Update `POST /api/schedules` to populate `created_by` from `req.user.id`.
+  - Include `created_by_name`, `created_by_email`, and `updated_at` in schedule queries.
+
+---
+
+### 3. Frontend UI Components
+
+#### [NEW] [src/components/DepartmentList.tsx](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/src/components/DepartmentList.tsx)
+- Department list view with search, stats, "+ Add Department" modal (for coordinators), and delete with cascade impact confirmation modal.
+
+#### [NEW] [src/components/CourseList.tsx](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/src/components/CourseList.tsx)
+- Course list view with course code, name, department filter, "+ Add Course" modal (for coordinators), and delete with impact confirmation.
+
+#### [NEW] [src/components/CascadeDeleteModal.tsx](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/src/components/CascadeDeleteModal.tsx)
+- Reusable modal that fetches and displays the impact analysis before confirming deletions.
+
+#### [MODIFY] [src/components/DashboardLayout.tsx](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/src/components/DashboardLayout.tsx)
+- Add "Departments" and "Courses" tabs to the main navigation header.
+
+#### [MODIFY] [src/components/RoomList.tsx](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/src/components/RoomList.tsx) & [src/components/BatchList.tsx](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/src/components/BatchList.tsx)
+- Integrate `CascadeDeleteModal` so users see how many schedules will be affected before deleting rooms/batches.
+
+#### [MODIFY] [src/lib/api.ts](file:///d:/Shahzaad/Projects/College/classroomUtilOpSystem/src/lib/api.ts)
+- Add API helper methods for departments, courses, and deletion impact checks.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. Run `node test_sprint2.js`:
+   - Verify triggers reject capacity-invalidating room and batch updates.
+   - Verify schedule updates reject double-booking conflicts and capacity errors.
+   - Verify department & course CRUD endpoints under both coordinator and viewer roles.
+   - Verify deletion impact endpoints return accurate counts.
+   - Verify `created_by` and `updated_at` are tracked accurately on schedule insert.
+
+### Browser Verification
+1. Navigate to `http://localhost:5174/app` with Coordinator account:
+   - Navigate to "Departments" tab, create a test department, view impact, and delete.
+   - Navigate to "Courses" tab, create a course, and check filter by department.
+   - Test room and batch cascade deletion modal.
+2. Sign in as Viewer:
+   - Verify Departments and Courses tabs show read-only status and suppress mutation controls.
