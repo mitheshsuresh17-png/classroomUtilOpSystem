@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchBatches, createBatch, deleteBatch, fetchBatchImpact } from '../lib/api';
+import { fetchBatches, createBatch, deleteBatch, fetchBatchImpact, fetchDepartments, Department } from '../lib/api';
 import { Users, Search, Plus, Trash2, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { CascadeDeleteModal } from './CascadeDeleteModal';
@@ -18,6 +18,7 @@ export default function BatchList() {
     const isCoordinator = user?.role === 'coordinator';
 
     const [batches, setBatches] = useState<Batch[]>([]);
+    const [departments, setDepartments] = useState<Department[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Filters
@@ -45,9 +46,9 @@ export default function BatchList() {
                 dept_id: parseInt(form.dept_id)
             });
             setSuccessMsg('Batch created successfully!');
-            setForm({ batch_id: '', year_of_study: '1', section: 'A', student_count: '', dept_id: '1' });
+            setForm({ batch_id: '', year_of_study: '1', section: 'A', student_count: '', dept_id: departments[0]?.dept_id.toString() || '1' });
             setShowForm(false);
-            loadBatches();
+            loadData();
         } catch (err: any) {
             setErrorMsg(err.message || 'An error occurred');
         }
@@ -56,20 +57,27 @@ export default function BatchList() {
     const confirmDelete = async () => {
         if (!deleteTarget) return;
         await deleteBatch(deleteTarget.batch_id.toString());
-        await loadBatches();
+        await loadData();
     };
 
     useEffect(() => {
-        loadBatches();
+        loadData();
     }, []);
 
-    const loadBatches = async () => {
+    const loadData = async () => {
         try {
             setLoading(true);
-            const data = await fetchBatches();
-            setBatches(data);
+            const [batchData, deptData] = await Promise.all([
+                fetchBatches(),
+                fetchDepartments()
+            ]);
+            setBatches(batchData);
+            setDepartments(deptData);
+            if (deptData.length > 0 && !form.dept_id) {
+                setForm(f => ({ ...f, dept_id: deptData[0].dept_id.toString() }));
+            }
         } catch (error) {
-            console.error('Error fetching batches:', error);
+            console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
         }
@@ -77,7 +85,8 @@ export default function BatchList() {
 
     const filteredBatches = batches.filter(batch => {
         const matchesSearch = batch.section.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                              batch.year_of_study.toString().includes(searchQuery);
+                              batch.year_of_study.toString().includes(searchQuery) ||
+                              (batch.dept_name && batch.dept_name.toLowerCase().includes(searchQuery.toLowerCase()));
         return matchesSearch;
     });
 
@@ -110,11 +119,11 @@ export default function BatchList() {
                     <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-5 gap-3">
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Manual Batch ID</label>
-                            <input required type="number" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.batch_id} onChange={e => setForm({...form, batch_id: e.target.value})} />
+                            <input required type="number" placeholder="e.g. 204" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.batch_id} onChange={e => setForm({...form, batch_id: e.target.value})} />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Year of Study</label>
-                            <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.year_of_study} onChange={e => setForm({...form, year_of_study: e.target.value})}>
+                            <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-white" value={form.year_of_study} onChange={e => setForm({...form, year_of_study: e.target.value})}>
                                 <option value="1">Year 1</option>
                                 <option value="2">Year 2</option>
                                 <option value="3">Year 3</option>
@@ -123,18 +132,29 @@ export default function BatchList() {
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Section</label>
-                            <input required maxLength={1} type="text" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm uppercase" value={form.section} onChange={e => setForm({...form, section: e.target.value.toUpperCase()})} />
+                            <input required maxLength={1} type="text" placeholder="e.g. A" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm uppercase" value={form.section} onChange={e => setForm({...form, section: e.target.value.toUpperCase()})} />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Student Count</label>
-                            <input required min="1" type="number" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.student_count} onChange={e => setForm({...form, student_count: e.target.value})} />
+                            <input required min="1" type="number" placeholder="e.g. 60" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.student_count} onChange={e => setForm({...form, student_count: e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Dept ID</label>
-                            <input required type="number" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.dept_id} onChange={e => setForm({...form, dept_id: e.target.value})} />
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Department</label>
+                            <select 
+                                required 
+                                className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-white" 
+                                value={form.dept_id} 
+                                onChange={e => setForm({...form, dept_id: e.target.value})}
+                            >
+                                {departments.map(d => (
+                                    <option key={d.dept_id} value={d.dept_id.toString()}>
+                                        {d.dept_name} (ID: {d.dept_id})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div className="md:col-span-5 mt-2">
-                            <button type="submit" className="px-5 py-2.5 bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-md">Create Batch</button>
+                            <button type="submit" className="px-5 py-2.5 bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-md hover:bg-blue-700 transition-colors">Create Batch</button>
                         </div>
                     </form>
                 </div>

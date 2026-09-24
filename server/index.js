@@ -326,14 +326,24 @@ app.delete('/api/rooms/:room_number', authenticateToken, requireCoordinator, asy
 // Add a Batch (Coordinator only)
 app.post('/api/batches', authenticateToken, requireCoordinator, async (req, res) => {
   const { batch_id, year_of_study, section, student_count, dept_id } = req.body;
+  if (!batch_id || !year_of_study || !section || !student_count || !dept_id) {
+    return res.status(400).json({ error: 'All fields (Batch ID, Year of Study, Section, Student Count, Department) are required.' });
+  }
   try {
+    const [deptRows] = await db.query('SELECT dept_id, dept_name FROM Department WHERE dept_id = ?', [dept_id]);
+    if (deptRows.length === 0) {
+      return res.status(400).json({ error: `Selected department (ID: ${dept_id}) does not exist. Please select an existing department.` });
+    }
     const [result] = await db.query(
       'INSERT INTO Batch (batch_id, year_of_study, section, student_count, dept_id) VALUES (?, ?, ?, ?, ?)',
-      [batch_id, year_of_study, section, student_count, dept_id]
+      [Number(batch_id), Number(year_of_study), section.trim().toUpperCase(), Number(student_count), Number(dept_id)]
     );
     res.status(201).json({ success: true });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: `Batch with ID #${batch_id} or Year ${year_of_study} Section ${section} already exists in this department.` });
+    }
+    res.status(400).json({ error: err.sqlMessage || err.message });
   }
 });
 
