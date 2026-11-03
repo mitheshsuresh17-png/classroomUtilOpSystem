@@ -1,8 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Trash2, Search, BookOpen, Users, Lock, AlertCircle, Loader2 } from 'lucide-react';
-import { fetchDepartments, createDepartment, deleteDepartment, fetchDepartmentImpact, Department } from '../lib/api';
+import {
+  Building2,
+  Plus,
+  Trash2,
+  Search,
+  BookOpen,
+  Users,
+  Lock,
+  AlertCircle,
+  Loader2,
+  Building,
+} from 'lucide-react';
+import {
+  fetchDepartments,
+  createDepartment,
+  deleteDepartment,
+  fetchDepartmentImpact,
+  Department,
+} from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { CascadeDeleteModal } from './CascadeDeleteModal';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from './ui/dialog';
 
 export const DepartmentList: React.FC = () => {
   const { user } = useAuth();
@@ -45,7 +76,10 @@ export const DepartmentList: React.FC = () => {
     try {
       setSubmitting(true);
       setFormError(null);
-      await createDepartment({ dept_id: parseInt(newDeptId, 10), dept_name: newDeptName.trim() });
+      await createDepartment({
+        dept_id: parseInt(newDeptId, 10),
+        dept_name: newDeptName.trim(),
+      });
       setIsAddModalOpen(false);
       setNewDeptId('');
       setNewDeptName('');
@@ -63,172 +97,180 @@ export const DepartmentList: React.FC = () => {
     await loadDepartments();
   };
 
-  const filtered = departments.filter((d) =>
-    d.dept_name.toLowerCase().includes(search.toLowerCase()) || d.dept_id.toString().includes(search)
+  const filtered = departments.filter(
+    (d) =>
+      d.dept_name.toLowerCase().includes(search.toLowerCase()) ||
+      d.dept_id.toString().includes(search)
   );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Top Banner / Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Building2 className="w-7 h-7 text-indigo-400" />
-            Departments
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Building2 className="w-7 h-7 text-primary" />
+            Academic Departments
           </h1>
-          <p className="text-sm text-slate-400">Manage academic departments, associated courses, and student batches</p>
+          <p className="text-sm text-muted-foreground">
+            Manage academic divisions, affiliated programs, faculty, and student batches
+          </p>
         </div>
-        {isCoordinator && (
-          <button
+
+        {isCoordinator ? (
+          <Button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-medium rounded-xl shadow-lg shadow-indigo-500/20 transition-all"
+            className="flex items-center gap-2 shadow-sm"
           >
             <Plus className="w-4 h-4" />
             Add Department
-          </button>
+          </Button>
+        ) : (
+          <Badge variant="outline" className="flex items-center gap-1.5 py-1.5 px-3">
+            <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+            <span>Viewer Mode — Read-Only</span>
+          </Badge>
         )}
       </div>
 
-      {/* Viewer Read-Only Banner */}
-      {!isCoordinator && (
-        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-sm flex items-center space-x-2">
-          <Lock className="w-4 h-4 flex-shrink-0" />
-          <span>You have read-only access. Only coordinators can create or delete departments.</span>
+      {/* Search Bar & Stats */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="relative max-w-md w-full">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search departments by name or ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-10 text-sm"
+          />
         </div>
-      )}
-
-      {/* Search Bar */}
-      <div className="relative max-w-md">
-        <Search className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search departments by name or ID..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-slate-900/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
-        />
+        <Badge variant="outline">{filtered.length} departments active</Badge>
       </div>
 
       {/* Department Cards Grid */}
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-slate-400 space-x-2">
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-          <span>Loading departments...</span>
+        <div className="flex items-center justify-center py-16 text-muted-foreground space-x-2">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <span className="font-medium text-sm">Loading academic departments...</span>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="p-12 text-center bg-slate-900/40 border border-slate-800/80 rounded-2xl text-slate-400">
-          <Building2 className="w-12 h-12 mx-auto text-slate-600 mb-3" />
-          <p className="text-base font-medium text-slate-300">No departments found</p>
-          <p className="text-xs text-slate-500 mt-1">Try adjusting your search criteria</p>
-        </div>
+        <Card className="p-12 text-center">
+          <Building className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+          <p className="text-base font-semibold text-foreground">No departments found</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Try adjusting your search query or add a new department
+          </p>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((dept) => (
-            <div
+            <Card
               key={dept.dept_id}
-              className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-5 shadow-lg space-y-4 transition-all"
+              className="hover:border-primary/40 transition-all shadow-sm hover:shadow-md"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-sm">
-                    {dept.dept_id}
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                      #{dept.dept_id}
+                    </div>
+                    <div>
+                      <CardTitle className="text-base leading-snug">{dept.dept_name}</CardTitle>
+                      <CardDescription>Department ID: {dept.dept_id}</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-base leading-snug">{dept.dept_name}</h3>
-                    <p className="text-xs text-slate-400">Dept ID: {dept.dept_id}</p>
-                  </div>
+                  {isCoordinator && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      onClick={() => setDeleteTarget(dept)}
+                      title="Delete Department"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
-                {isCoordinator && (
-                  <button
-                    onClick={() => setDeleteTarget(dept)}
-                    title="Delete Department"
-                    className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+              </CardHeader>
 
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
-                <div className="flex items-center space-x-2 text-xs text-slate-300">
-                  <BookOpen className="w-4 h-4 text-purple-400" />
-                  <span>{dept.total_courses || 0} Courses</span>
+              <CardContent className="pt-2">
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+                  <div className="flex items-center space-x-2 text-xs text-muted-foreground font-medium">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    <span>{dept.total_courses || 0} Courses</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-xs text-muted-foreground font-medium">
+                    <Users className="w-4 h-4 text-emerald-600" />
+                    <span>{dept.total_batches || 0} Batches</span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2 text-xs text-slate-300">
-                  <Users className="w-4 h-4 text-emerald-400" />
-                  <span>{dept.total_batches || 0} Batches</span>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
 
-      {/* Add Department Modal */}
+      {/* Add Department Dialog */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-indigo-400" />
-                Add New Department
-              </h3>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-white text-sm"
-              >
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleAddDepartment} className="p-6 space-y-4">
-              {formError && (
-                <div className="p-3 bg-red-950/40 border border-red-800/60 rounded-xl text-red-300 text-xs flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{formError}</span>
+        <Dialog open={isAddModalOpen} onOpenChange={(open) => !open && setIsAddModalOpen(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <Building2 className="w-4 h-4" />
                 </div>
+                <div>
+                  <DialogTitle>Add Academic Department</DialogTitle>
+                  <DialogDescription>Register a new department in the university registry</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <form onSubmit={handleAddDepartment} className="space-y-4 py-2">
+              {formError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="w-4 h-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{formError}</AlertDescription>
+                </Alert>
               )}
+
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Department ID (Numeric)</label>
-                <input
+                <Label htmlFor="add-dept-id">Department ID (Numeric)</Label>
+                <Input
+                  id="add-dept-id"
                   type="number"
                   required
-                  placeholder="e.g. 3"
+                  placeholder="e.g. 5"
                   value={newDeptId}
                   onChange={(e) => setNewDeptId(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Department Name</label>
-                <input
+                <Label htmlFor="add-dept-name">Department Name</Label>
+                <Input
+                  id="add-dept-name"
                   type="text"
                   required
-                  placeholder="e.g. Civil Engineering"
+                  placeholder="e.g. Electrical & Electronics Engineering"
                   value={newDeptName}
                   onChange={(e) => setNewDeptName(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
                 />
               </div>
-              <div className="flex justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-sm text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
-                >
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-colors"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  <span>Add Department</span>
-                </button>
-              </div>
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Register Department
+                </Button>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Cascade Delete Modal */}

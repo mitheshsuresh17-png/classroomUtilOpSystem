@@ -11,11 +11,40 @@ import { CourseList } from './CourseList';
 import { DepartmentList } from './DepartmentList';
 import FacultyList from './FacultyList';
 import {
-  LayoutDashboard, Calendar, Building2,
-  LogOut, Users, ChevronDown, Menu, X,
-  ShieldCheck, UserPlus, Eye, CheckCircle2, AlertCircle, RefreshCw,
-  BookOpen, Building, BarChart3, GraduationCap
+  LayoutDashboard,
+  Calendar,
+  Building2,
+  LogOut,
+  Users,
+  ChevronDown,
+  Menu,
+  X,
+  ShieldCheck,
+  UserPlus,
+  Eye,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  BookOpen,
+  Building,
+  BarChart3,
+  GraduationCap,
+  Loader2,
 } from 'lucide-react';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from './ui/dialog';
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -37,7 +66,12 @@ export default function DashboardLayout() {
   // Staff management state
   const [staffList, setStaffList] = useState<StaffUser[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
-  const [staffForm, setStaffForm] = useState({ name: '', email: '', password: '', role: 'viewer' as 'coordinator' | 'viewer' });
+  const [staffForm, setStaffForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'viewer' as 'coordinator' | 'viewer',
+  });
   const [staffError, setStaffError] = useState('');
   const [staffSuccess, setStaffSuccess] = useState('');
   const [provisioning, setProvisioning] = useState(false);
@@ -51,7 +85,12 @@ export default function DashboardLayout() {
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const loadStaff = async () => {
@@ -92,41 +131,52 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-background">
       {/* Top Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-40 glass border-b border-white/40 shadow-nav">
-        <div className="flex items-center justify-between h-16 px-4 lg:px-6">
+      <nav className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-b border-border shadow-sm">
+        <div className="flex items-center justify-between h-16 px-4 lg:px-8 max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
             {/* Mobile menu button */}
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="lg:hidden h-9 w-9"
             >
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+            </Button>
 
-            <div className="flex items-center gap-2.5">
-              <img src="/high-resolution-color-logo.png" alt="CLUS Logo" className="h-7 w-auto object-contain drop-shadow-sm" />
-              <span className="text-lg font-bold text-gray-800 hidden sm:block">CLUS</span>
+            <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
+              <img
+                src="/high-resolution-color-logo.png"
+                alt="CLUS Logo"
+                className="h-8 w-auto object-contain drop-shadow-sm"
+              />
+              <span className="text-lg font-bold tracking-tight text-foreground hidden sm:block">
+                CLUS
+              </span>
             </div>
           </div>
 
-          {/* Desktop tabs */}
-          <div className="hidden lg:flex items-center gap-1 bg-gray-100/80 rounded-2xl p-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
+          {/* Desktop Navigation Tabs */}
+          <div className="hidden lg:flex items-center gap-1 bg-muted/60 rounded-xl p-1 border border-border/50">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 ${
+                    isActive
+                      ? 'bg-background text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                  }`}
+                >
+                  <tab.icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Right Side: Role Badge & User Profile */}
@@ -135,78 +185,73 @@ export default function DashboardLayout() {
             {user && (
               <div className="hidden sm:flex items-center">
                 {user.role === 'coordinator' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                  <Badge variant="default" className="flex items-center gap-1.5 py-1 px-2.5 font-medium">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     Coordinator
-                  </span>
+                  </Badge>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+                  <Badge variant="secondary" className="flex items-center gap-1.5 py-1 px-2.5 font-medium">
                     <Eye className="w-3.5 h-3.5" />
-                    Viewer (Read-Only)
-                  </span>
+                    Viewer
+                  </Badge>
                 )}
               </div>
             )}
 
             {/* Profile Dropdown */}
             <div className="relative">
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-2 px-2.5 py-1.5 h-auto rounded-xl hover:bg-muted"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-xs font-bold">
                   {user ? getInitials(user.name) : 'U'}
                 </div>
-                <span className="text-sm font-medium text-gray-700 hidden sm:block max-w-[120px] truncate">
+                <span className="text-xs font-semibold text-foreground hidden sm:block max-w-[120px] truncate">
                   {user?.name || 'User'}
                 </span>
-                <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-              </button>
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+              </Button>
 
               {profileOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
-                  <div className="absolute right-0 top-12 z-50 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 animate-fade-up">
-                    <div className="px-4 py-3 border-b border-gray-100">
+                  <div className="absolute right-0 top-12 z-50 w-72 bg-popover rounded-xl shadow-xl border border-border py-2 animate-fade-up">
+                    <div className="px-4 py-3 border-b border-border">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-sm font-bold">
+                        <div className="w-9 h-9 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-xs font-bold">
                           {user ? getInitials(user.name) : 'U'}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold text-gray-800 truncate">{user?.name}</div>
-                          <div className="text-xs text-gray-400 truncate">{user?.email}</div>
+                          <div className="text-sm font-semibold text-foreground truncate">{user?.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
                           <div className="mt-1">
-                            {user?.role === 'coordinator' ? (
-                              <span className="inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-purple-100 text-purple-700">
-                                Coordinator
-                              </span>
-                            ) : (
-                              <span className="inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-sky-100 text-sky-700">
-                                Viewer
-                              </span>
-                            )}
+                            <Badge variant={user?.role === 'coordinator' ? 'default' : 'secondary'} className="text-[10px] py-0 px-2">
+                              {user?.role?.toUpperCase()}
+                            </Badge>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-1 space-y-0.5">
+                    <div className="p-1.5 space-y-1">
                       {user?.role === 'coordinator' && (
                         <button
                           onClick={() => {
                             setProfileOpen(false);
                             setStaffModalOpen(true);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 rounded-xl transition-colors font-medium"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-accent rounded-lg transition-colors"
                         >
-                          <UserPlus className="w-4 h-4" />
+                          <UserPlus className="w-4 h-4 text-primary" />
                           Staff User Management
                         </button>
                       )}
 
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
                         Sign Out
@@ -220,96 +265,93 @@ export default function DashboardLayout() {
         </div>
       </nav>
 
-      {/* Staff Management Modal (Coordinator only) */}
+      {/* Staff Management Dialog (Coordinator only) */}
       {staffModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <Dialog open={staffModalOpen} onOpenChange={(open) => !open && setStaffModalOpen(false)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-800">Department Staff Management</h3>
-                  <p className="text-xs text-slate-500">Provision and manage internal department accounts</p>
+                  <DialogTitle>Department Staff Management</DialogTitle>
+                  <DialogDescription>Provision and manage authorized internal user accounts</DialogDescription>
                 </div>
               </div>
-              <button
-                onClick={() => setStaffModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            </DialogHeader>
 
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-6">
+            <div className="space-y-6 py-2">
               {/* Provision Form */}
-              <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-purple-900 mb-3 flex items-center gap-1.5">
-                  <UserPlus className="w-3.5 h-3.5" />
-                  Provision New Staff Account
-                </h4>
+              <div className="bg-muted/40 border border-border rounded-xl p-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground mb-3">
+                  <UserPlus className="w-3.5 h-3.5 text-primary" />
+                  <span>Provision New Staff Account</span>
+                </div>
 
                 {staffError && (
-                  <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    {staffError}
-                  </div>
+                  <Alert variant="destructive" className="mb-3">
+                    <AlertCircle className="w-4 h-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{staffError}</AlertDescription>
+                  </Alert>
                 )}
 
                 {staffSuccess && (
-                  <div className="mb-3 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    {staffSuccess}
-                  </div>
+                  <Alert variant="success" className="mb-3">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <AlertTitle>Success</AlertTitle>
+                    <AlertDescription>{staffSuccess}</AlertDescription>
+                  </Alert>
                 )}
 
                 <form onSubmit={handleProvision} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">Full Name</label>
-                    <input
+                    <Label htmlFor="staff-name">Full Name</Label>
+                    <Input
+                      id="staff-name"
                       type="text"
                       required
                       placeholder="e.g. Dr. Jane Smith"
                       value={staffForm.name}
                       onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-purple-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">Email Address</label>
-                    <input
+                    <Label htmlFor="staff-email">Email Address</Label>
+                    <Input
+                      id="staff-email"
                       type="email"
                       required
                       placeholder="e.g. jsmith@college.edu"
                       value={staffForm.email}
                       onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-purple-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">Initial Password</label>
-                    <input
+                    <Label htmlFor="staff-password">Initial Password</Label>
+                    <Input
+                      id="staff-password"
                       type="password"
                       required
                       minLength={6}
                       placeholder="••••••••"
                       value={staffForm.password}
                       onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-purple-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">Role</label>
+                    <Label htmlFor="staff-role">Role</Label>
                     <select
+                      id="staff-role"
                       value={staffForm.role}
-                      onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value as 'coordinator' | 'viewer' })}
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-purple-500"
+                      onChange={(e) =>
+                        setStaffForm({ ...staffForm, role: e.target.value as 'coordinator' | 'viewer' })
+                      }
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <option value="viewer">Viewer (Read-Only Schedules & Analytics)</option>
                       <option value="coordinator">Coordinator (Full Edit & Provisioning)</option>
@@ -317,20 +359,19 @@ export default function DashboardLayout() {
                   </div>
 
                   <div className="sm:col-span-2 flex justify-end mt-1">
-                    <button
-                      type="submit"
-                      disabled={provisioning}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                    >
+                    <Button type="submit" disabled={provisioning}>
                       {provisioning ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Provisioning...
+                        </>
                       ) : (
                         <>
-                          <UserPlus className="w-3.5 h-3.5" />
+                          <UserPlus className="w-4 h-4 mr-2" />
                           Create Staff Account
                         </>
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </form>
               </div>
@@ -338,117 +379,123 @@ export default function DashboardLayout() {
               {/* Staff Accounts List */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Existing Staff Accounts ({staffList.length})
-                  </h4>
-                  <button
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={loadStaff}
                     disabled={loadingStaff}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    className="h-8 px-2"
                     title="Refresh List"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${loadingStaff ? 'animate-spin' : ''}`} />
-                  </button>
+                  </Button>
                 </div>
 
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase">
-                      <tr>
-                        <th className="px-4 py-2.5">Name</th>
-                        <th className="px-4 py-2.5">Email</th>
-                        <th className="px-4 py-2.5">Role</th>
-                        <th className="px-4 py-2.5">Created</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
+                <div className="border border-border rounded-xl overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {staffList.map((s) => (
-                        <tr key={s.id} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-2.5 font-medium text-slate-800">{s.name}</td>
-                          <td className="px-4 py-2.5 text-slate-600">{s.email}</td>
-                          <td className="px-4 py-2.5">
-                            {s.role === 'coordinator' ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">
-                                Coordinator
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">
-                                Viewer
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2.5 text-slate-400">
+                        <TableRow key={s.id}>
+                          <TableCell className="font-semibold text-foreground">{s.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{s.email}</TableCell>
+                          <TableCell>
+                            <Badge variant={s.role === 'coordinator' ? 'default' : 'secondary'}>
+                              {s.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs">
                             {s.created_at ? new Date(s.created_at).toLocaleDateString() : 'N/A'}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
                       {staffList.length === 0 && !loadingStaff && (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
                             No staff accounts found.
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-              <button
-                onClick={() => setStaffModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
-              >
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStaffModalOpen(false)}>
                 Close
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 lg:hidden">
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-100 p-4 animate-slide-in">
+          <div
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <div className="fixed left-0 top-16 bottom-0 w-64 bg-background border-r border-border p-4 animate-slide-in">
             <div className="space-y-1">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setSidebarOpen(false); }}
-                  className={`sidebar-link w-full ${
-                    activeTab === tab.id ? 'sidebar-link-active' : 'sidebar-link-inactive'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              ))}
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Content */}
-      <main className="pt-20 pb-8 px-4 lg:px-8 max-w-7xl mx-auto animate-page-enter" key={activeTab}>
-        {/* Mobile tab selector */}
+      {/* Main Content Area */}
+      <main className="pt-20 pb-12 px-4 lg:px-8 max-w-7xl mx-auto animate-page-enter" key={activeTab}>
+        {/* Mobile tab scrollbar */}
         <div className="flex lg:hidden items-center gap-2 overflow-x-auto pb-4 mb-2 -mx-1 px-1 no-scrollbar">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl whitespace-nowrap transition-all ${
-                activeTab === tab.id
-                  ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100'
-                  : 'bg-white text-gray-500 border border-gray-100 hover:border-gray-200'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-all border ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-card text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                <tab.icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         {activeTab === 'dashboard' && <Dashboard />}
@@ -463,4 +510,3 @@ export default function DashboardLayout() {
     </div>
   );
 }
-

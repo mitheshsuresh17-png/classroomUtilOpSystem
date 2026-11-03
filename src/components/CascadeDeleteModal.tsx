@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Trash2, X, Loader2, Info } from 'lucide-react';
+import { AlertTriangle, Trash2, Loader2, Info } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from './ui/dialog';
+import { Button } from './ui/button';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 export interface ImpactData {
   courses_count?: number;
@@ -47,8 +57,6 @@ export const CascadeDeleteModal: React.FC<CascadeDeleteModalProps> = ({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const handleConfirm = async () => {
     try {
       setDeleting(true);
@@ -70,126 +78,122 @@ export const CascadeDeleteModal: React.FC<CascadeDeleteModalProps> = ({
       (impact.schedules_count && impact.schedules_count > 0));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-scale-up">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/40">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !deleting && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center justify-center text-destructive">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">{title}</h3>
-              <p className="text-xs text-slate-400">Cascade Deletion Impact Assessment</p>
+              <DialogTitle className="text-lg text-foreground">{title}</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Cascade Deletion Impact Assessment
+              </DialogDescription>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            disabled={deleting}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        </DialogHeader>
 
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          <p className="text-sm text-slate-300">
-            Are you sure you want to delete <span className="font-semibold text-white">"{itemName}"</span>?
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-foreground/80">
+            Are you sure you want to delete <span className="font-semibold text-foreground">"{itemName}"</span>?
           </p>
 
           {loadingImpact && (
-            <div className="flex items-center justify-center space-x-2 py-6 text-slate-400 text-sm">
-              <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+            <div className="flex items-center justify-center space-x-2 py-6 text-muted-foreground text-sm">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
               <span>Analyzing database dependencies & active schedules...</span>
             </div>
           )}
 
           {error && (
-            <div className="p-3 bg-red-950/40 border border-red-800/60 rounded-xl text-red-300 text-sm flex items-start space-x-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
+            <Alert variant="destructive">
+              <AlertTriangle className="w-4 h-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           {!loadingImpact && impact && (
             <div>
               {hasCascadeImpact ? (
-                <div className="p-4 bg-red-950/20 border border-red-500/30 rounded-xl space-y-3">
-                  <div className="flex items-center space-x-2 text-red-400 font-medium text-sm">
+                <div className="p-4 bg-destructive/10 border border-destructive/25 rounded-xl space-y-3">
+                  <div className="flex items-center space-x-2 text-destructive font-medium text-sm">
                     <AlertTriangle className="w-4 h-4" />
                     <span>Warning: Foreign Key Cascade Impact</span>
                   </div>
-                  <p className="text-xs text-slate-300">
+                  <p className="text-xs text-muted-foreground">
                     Deleting this {itemType} will permanently remove the following linked records from the database:
                   </p>
-                  <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                     {impact.courses_count !== undefined && (
-                      <div className="bg-slate-900/80 border border-slate-700/60 p-2.5 rounded-lg text-center">
-                        <div className="text-lg font-bold text-red-400">{impact.courses_count}</div>
-                        <div className="text-[11px] text-slate-400">Courses</div>
+                      <div className="bg-background border border-border p-2.5 rounded-lg text-center">
+                        <div className="text-lg font-bold text-destructive">{impact.courses_count}</div>
+                        <div className="text-[11px] text-muted-foreground font-medium">Courses</div>
                       </div>
                     )}
                     {impact.batches_count !== undefined && (
-                      <div className="bg-slate-900/80 border border-slate-700/60 p-2.5 rounded-lg text-center">
-                        <div className="text-lg font-bold text-red-400">{impact.batches_count}</div>
-                        <div className="text-[11px] text-slate-400">Batches</div>
+                      <div className="bg-background border border-border p-2.5 rounded-lg text-center">
+                        <div className="text-lg font-bold text-destructive">{impact.batches_count}</div>
+                        <div className="text-[11px] text-muted-foreground font-medium">Batches</div>
                       </div>
                     )}
                     {impact.faculty_count !== undefined && (
-                      <div className="bg-slate-900/80 border border-slate-700/60 p-2.5 rounded-lg text-center">
-                        <div className="text-lg font-bold text-red-400">{impact.faculty_count}</div>
-                        <div className="text-[11px] text-slate-400">Faculty</div>
+                      <div className="bg-background border border-border p-2.5 rounded-lg text-center">
+                        <div className="text-lg font-bold text-destructive">{impact.faculty_count}</div>
+                        <div className="text-[11px] text-muted-foreground font-medium">Faculty</div>
                       </div>
                     )}
                     {impact.schedules_count !== undefined && (
-                      <div className="bg-slate-900/80 border border-slate-700/60 p-2.5 rounded-lg text-center">
-                        <div className="text-lg font-bold text-red-400">{impact.schedules_count}</div>
-                        <div className="text-[11px] text-slate-400">Active Schedules</div>
+                      <div className="bg-background border border-border p-2.5 rounded-lg text-center">
+                        <div className="text-lg font-bold text-destructive">{impact.schedules_count}</div>
+                        <div className="text-[11px] text-muted-foreground font-medium">Schedules</div>
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center space-x-2">
-                  <Info className="w-4 h-4 flex-shrink-0" />
-                  <span>No active schedules or dependent records are attached. Safe to remove.</span>
-                </div>
+                <Alert variant="success">
+                  <Info className="w-4 h-4" />
+                  <AlertTitle>Safe to Delete</AlertTitle>
+                  <AlertDescription>
+                    No active schedules or dependent records are attached to this {itemType}.
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 px-6 py-4 border-t border-slate-800 bg-slate-950/40">
-          <button
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
             type="button"
+            variant="outline"
             onClick={onClose}
             disabled={deleting}
-            className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="destructive"
             onClick={handleConfirm}
             disabled={deleting || loadingImpact}
-            className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-xl transition-colors shadow-lg shadow-red-500/20"
           >
             {deleting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Deleting...</span>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Deleting...
               </>
             ) : (
               <>
-                <Trash2 className="w-4 h-4" />
-                <span>Delete Permanently</span>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Permanently
               </>
             )}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

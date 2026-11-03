@@ -9,8 +9,16 @@ import { CascadeDeleteModal } from './CascadeDeleteModal';
 import {
   GraduationCap, Plus, Search, Filter, Pencil, Trash2,
   Calendar, Building, Mail, Award, AlertCircle, CheckCircle2,
-  X, Clock, Users, BookOpen
+  Clock, Users, BookOpen, Loader2
 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import { Alert, AlertDescription } from './ui/alert';
 
 export default function FacultyList() {
   const { user } = useAuth();
@@ -58,16 +66,16 @@ export default function FacultyList() {
         fetchFaculty(),
         fetchDepartments()
       ]);
-      setFaculty(facData || []);
-      setDepartments(deptData || []);
+      setFaculty(facData);
+      setDepartments(deptData);
     } catch (err: any) {
-      console.error('Failed to load faculty:', err);
+      console.error('Failed to load faculty roster', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const showToast = (msg: string) => {
+  const showNotification = (msg: string) => {
     setSuccessToast(msg);
     setTimeout(() => setSuccessToast(''), 4000);
   };
@@ -78,7 +86,7 @@ export default function FacultyList() {
       faculty_id: '',
       faculty_name: '',
       email: '',
-      dept_id: departments[0]?.dept_id?.toString() || '1',
+      dept_id: departments[0]?.dept_id.toString() || '',
       designation: 'Assistant Professor',
       max_weekly_slots: '16'
     });
@@ -100,47 +108,50 @@ export default function FacultyList() {
     setModalOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
-
-    if (!formData.faculty_name.trim()) {
-      setFormError('Faculty name is required.');
-      return;
-    }
-    if (!formData.email.trim() || !formData.email.includes('@')) {
-      setFormError('A valid email address is required.');
-      return;
-    }
+    setSubmitting(true);
 
     try {
-      setSubmitting(true);
       if (isEditing) {
-        await updateFaculty(Number(formData.faculty_id), {
-          faculty_name: formData.faculty_name.trim(),
-          email: formData.email.trim(),
+        await updateFaculty(formData.faculty_id, {
+          faculty_name: formData.faculty_name,
+          email: formData.email,
           dept_id: Number(formData.dept_id),
           designation: formData.designation,
           max_weekly_slots: Number(formData.max_weekly_slots)
         });
-        showToast(`Faculty member "${formData.faculty_name}" updated successfully.`);
+        showNotification(`Faculty profile for ${formData.faculty_name} updated successfully.`);
       } else {
         await createFaculty({
           faculty_id: Number(formData.faculty_id),
-          faculty_name: formData.faculty_name.trim(),
-          email: formData.email.trim(),
+          faculty_name: formData.faculty_name,
+          email: formData.email,
           dept_id: Number(formData.dept_id),
           designation: formData.designation,
           max_weekly_slots: Number(formData.max_weekly_slots)
         });
-        showToast(`Faculty member "${formData.faculty_name}" created successfully.`);
+        showNotification(`Faculty member ${formData.faculty_name} added to roster.`);
       }
       setModalOpen(false);
       loadData();
     } catch (err: any) {
-      setFormError(err.message || 'Operation failed');
+      setFormError(err.message || 'An error occurred while saving.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteFaculty(deleteTarget.faculty_id);
+      showNotification(`Faculty member #${deleteTarget.faculty_id} was removed.`);
+      setDeleteTarget(null);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete faculty member.');
     }
   };
 
@@ -149,136 +160,132 @@ export default function FacultyList() {
     setLoadingTimetable(true);
     try {
       const data = await fetchFacultyTimetable(f.faculty_id);
-      setTimetableData(data || []);
-    } catch (err: any) {
-      console.error('Failed to load faculty timetable:', err);
+      setTimetableData(data);
+    } catch (err) {
+      console.error('Failed to load faculty timetable', err);
     } finally {
       setLoadingTimetable(false);
     }
   };
 
-  // Filtered faculty
-  const filteredFaculty = faculty.filter(f => {
+  const filteredFaculty = faculty.filter((f) => {
     const matchesSearch =
       f.faculty_name.toLowerCase().includes(search.toLowerCase()) ||
-      f.email.toLowerCase().includes(search.toLowerCase());
+      f.email.toLowerCase().includes(search.toLowerCase()) ||
+      f.faculty_id.toString().includes(search);
     const matchesDept = selectedDept === 'all' || f.dept_id.toString() === selectedDept;
     const matchesDesig = selectedDesignation === 'all' || f.designation === selectedDesignation;
     return matchesSearch && matchesDept && matchesDesig;
   });
 
-  // KPI Calculations
   const totalSlotsAssigned = faculty.reduce((acc, f) => acc + (f.assigned_slots || 0), 0);
-  const avgUtilization = faculty.length > 0
+  const avgUtilization = faculty.length
     ? Math.round(faculty.reduce((acc, f) => acc + Number(f.utilization_percent || 0), 0) / faculty.length)
     : 0;
-  const saturatedCount = faculty.filter(f => Number(f.utilization_percent || 0) >= 80).length;
+  const saturatedCount = faculty.filter((f) => Number(f.utilization_percent || 0) >= 80).length;
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
+      {/* Toast Alert */}
       {successToast && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            <span className="text-sm font-medium">{successToast}</span>
-          </div>
-          <button onClick={() => setSuccessToast('')} className="text-emerald-500 hover:text-emerald-700">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        <Alert variant="success" className="animate-fade-in flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <AlertDescription>{successToast}</AlertDescription>
+        </Alert>
       )}
 
-      {/* Header & Primary Actions */}
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">Faculty Management</h1>
-            <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-200">
-              {faculty.length} Instructors Active
-            </span>
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-purple-50 text-purple-700 border border-purple-200">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Faculty & Instructors</h1>
           </div>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             Monitor teaching workloads, manage department rosters, and enforce timetable shift constraints.
           </p>
         </div>
 
         {isCoordinator && (
-          <button
+          <Button
             onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md hover:shadow-indigo-500/20 font-medium text-sm transition-all duration-200"
+            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
           >
             <Plus className="w-4 h-4" />
             Add Faculty Member
-          </button>
+          </Button>
         )}
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+        <Card className="p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center font-bold">
             <GraduationCap className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{faculty.length}</div>
-            <div className="text-xs text-gray-500 font-medium">Total Faculty Members</div>
+            <div className="text-2xl font-bold text-slate-900">{faculty.length}</div>
+            <div className="text-xs text-slate-500 font-medium">Total Faculty Members</div>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+        <Card className="p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold">
             <Clock className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{totalSlotsAssigned}</div>
-            <div className="text-xs text-gray-500 font-medium">Total Weekly Slots Assigned</div>
+            <div className="text-2xl font-bold text-slate-900">{totalSlotsAssigned}</div>
+            <div className="text-xs text-slate-500 font-medium">Weekly Periods Assigned</div>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+        <Card className="p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center font-bold">
             <Award className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{avgUtilization}%</div>
-            <div className="text-xs text-gray-500 font-medium">Average Teaching Load</div>
+            <div className="text-2xl font-bold text-slate-900">{avgUtilization}%</div>
+            <div className="text-xs text-slate-500 font-medium">Average Teaching Load</div>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold ${saturatedCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+        <Card className="p-5 flex items-center gap-4">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold border ${
+            saturatedCount > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          }`}>
             <AlertCircle className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{saturatedCount}</div>
-            <div className="text-xs text-gray-500 font-medium">Near Capacity (&ge;80% Load)</div>
+            <div className="text-2xl font-bold text-slate-900">{saturatedCount}</div>
+            <div className="text-xs text-slate-500 font-medium">Near Capacity (&ge;80% Load)</div>
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+      <Card className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Input
             type="text"
             placeholder="Search faculty by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-gray-50/50"
+            className="pl-10"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
             <Filter className="w-3.5 h-3.5" />
             Filters:
           </div>
           <select
             value={selectedDept}
             onChange={(e) => setSelectedDept(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-xl text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="h-9 px-3 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           >
             <option value="all">All Departments</option>
             {departments.map((d) => (
@@ -291,7 +298,7 @@ export default function FacultyList() {
           <select
             value={selectedDesignation}
             onChange={(e) => setSelectedDesignation(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-xl text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="h-9 px-3 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           >
             <option value="all">All Designations</option>
             <option value="Professor">Professor</option>
@@ -300,37 +307,45 @@ export default function FacultyList() {
             <option value="Adjunct Lecturer">Adjunct Lecturer</option>
           </select>
         </div>
-      </div>
+      </Card>
 
       {/* Faculty Table */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      <Card>
+        <CardHeader className="p-5 pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Faculty Roster & Workload Distribution</CardTitle>
+            <CardDescription>Real-time teaching load and active semester allocations</CardDescription>
+          </div>
+          <Badge variant="secondary">{filteredFaculty.length} members</Badge>
+        </CardHeader>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50/75 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4">Faculty Member</th>
-                <th className="py-3.5 px-4">Department</th>
-                <th className="py-3.5 px-4">Designation</th>
-                <th className="py-3.5 px-4">Teaching Workload</th>
-                <th className="py-3.5 px-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Faculty Member</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Designation</TableHead>
+                <TableHead>Teaching Workload</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {loading ? (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-gray-400">
+                <TableRow>
+                  <TableCell colSpan={5} className="py-12 text-center text-slate-400">
                     <div className="flex items-center justify-center gap-2">
-                      <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                       <span>Loading faculty roster...</span>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : filteredFaculty.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-gray-400">
+                <TableRow>
+                  <TableCell colSpan={5} className="py-12 text-center text-slate-400">
                     No faculty members found matching your search criteria.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 filteredFaculty.map((f) => {
                   const utilPercent = Number(f.utilization_percent || 0);
@@ -339,343 +354,305 @@ export default function FacultyList() {
                     utilPercent >= 50 ? 'bg-amber-500' : 'bg-emerald-500';
 
                   return (
-                    <tr key={f.faculty_id} className="hover:bg-indigo-50/20 transition-colors">
-                      <td className="py-3.5 px-4">
+                    <TableRow key={f.faculty_id}>
+                      <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs">
+                          <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold flex items-center justify-center text-xs">
                             {f.faculty_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900">{f.faculty_name}</div>
-                            <div className="text-xs text-gray-400 flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
+                            <div className="font-semibold text-slate-900">{f.faculty_name}</div>
+                            <div className="text-xs text-slate-400 flex items-center gap-1">
+                              <Mail className="w-3 h-3 text-slate-400" />
                               {f.email}
                             </div>
                           </div>
                         </div>
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-700">
-                          <Building className="w-3 h-3 text-gray-400" />
-                          {f.dept_name || `Dept #${f.dept_id}`}
-                        </span>
-                      </td>
+                      <TableCell className="text-slate-600 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <Building className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{f.dept_name || `Dept #${f.dept_id}`}</span>
+                        </div>
+                      </TableCell>
 
-                      <td className="py-3.5 px-4">
-                        <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                          f.designation === 'Professor' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                          f.designation === 'Associate Professor' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                          'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}>
-                          {f.designation}
-                        </span>
-                      </td>
+                      <TableCell>
+                        <Badge variant="outline">{f.designation}</Badge>
+                      </TableCell>
 
-                      <td className="py-3.5 px-4 w-64">
-                        <div>
-                          <div className="flex justify-between text-xs font-semibold mb-1">
-                            <span className="text-gray-700">
-                              {f.assigned_slots || 0} / {f.max_weekly_slots} slots
+                      <TableCell>
+                        <div className="w-48 space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-800">
+                              {f.assigned_slots || 0} / {f.max_weekly_slots} periods
                             </span>
-                            <span className={`${utilPercent >= 80 ? 'text-rose-600' : 'text-gray-500'}`}>
+                            <span className="text-[11px] font-bold text-slate-500">
                               {utilPercent}%
                             </span>
                           </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                             <div
-                              className={`h-full ${progressColor} transition-all duration-300`}
-                              style={{ width: `${Math.min(100, utilPercent)}%` }}
+                              className={`h-full rounded-full transition-all duration-300 ${progressColor}`}
+                              style={{ width: `${Math.min(utilPercent, 100)}%` }}
                             />
                           </div>
+                          <div className="text-[10px] text-slate-400">
+                            {f.remaining_slots !== undefined ? `${f.remaining_slots} periods available` : ''}
+                          </div>
                         </div>
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => openTimetable(f)}
-                            title="View Faculty Weekly Timetable"
-                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            className="h-8 px-2.5 text-xs text-blue-700 bg-blue-50/50 hover:bg-blue-100/70 border-blue-200"
                           >
-                            <Calendar className="w-4 h-4" />
-                          </button>
+                            <Calendar className="w-3.5 h-3.5 mr-1" />
+                            Timetable
+                          </Button>
 
                           {isCoordinator && (
                             <>
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => openEditModal(f)}
                                 title="Edit Faculty"
-                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                className="h-8 w-8 text-slate-500 hover:text-slate-900"
                               >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                              <button
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => setDeleteTarget(f)}
                                 title="Delete Faculty"
-                                className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
                               >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
                             </>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
-      </div>
+      </Card>
 
-      {/* Add / Edit Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-gray-100 animate-scale-up">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-              <div className="flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-indigo-600" />
-                <h3 className="font-semibold text-gray-900">
-                  {isEditing ? 'Edit Faculty Details' : 'Add New Faculty Member'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Add / Edit Faculty Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent onClose={() => setModalOpen(false)}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-purple-600" />
+              {isEditing ? `Edit Faculty #${formData.faculty_id}` : 'Add New Faculty Member'}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditing
+                ? 'Update instructor profile, department affiliation, or weekly teaching quota.'
+                : 'Register an instructor into the master schedule database.'}
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {formError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>{formError}</span>
-                </div>
-              )}
+          <form onSubmit={handleModalSubmit} className="space-y-4">
+            {formError && (
+              <Alert variant="destructive">
+                <AlertCircle className="w-4 h-4" />
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            )}
 
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Faculty ID (Positive Number)
-                </label>
-                <input
+                <Label htmlFor="fac_id" className="mb-1.5 block">Faculty ID</Label>
+                <Input
+                  id="fac_id"
                   type="number"
+                  required
                   disabled={isEditing}
+                  placeholder="e.g. 1005"
                   value={formData.faculty_id}
                   onChange={(e) => setFormData({ ...formData, faculty_id: e.target.value })}
-                  placeholder="e.g. 1005"
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-gray-100 disabled:text-gray-400"
-                  required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Full Name (with Prefix)
-                </label>
-                <input
+                <Label htmlFor="fac_name" className="mb-1.5 block">Full Name</Label>
+                <Input
+                  id="fac_name"
                   type="text"
+                  required
+                  placeholder="e.g. Dr. John von Neumann"
                   value={formData.faculty_name}
                   onChange={(e) => setFormData({ ...formData, faculty_name: e.target.value })}
-                  placeholder="e.g. Dr. Margaret Hamilton"
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  required
                 />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="fac_email" className="mb-1.5 block">College Email Address</Label>
+              <Input
+                id="fac_email"
+                type="email"
+                required
+                placeholder="neumann@college.edu"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="fac_dept" className="mb-1.5 block">Department</Label>
+                <select
+                  id="fac_dept"
+                  required
+                  value={formData.dept_id}
+                  onChange={(e) => setFormData({ ...formData, dept_id: e.target.value })}
+                  className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500"
+                >
+                  {departments.map((d) => (
+                    <option key={d.dept_id} value={d.dept_id}>
+                      {d.dept_name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="e.g. m.hamilton@college.edu"
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                <Label htmlFor="fac_desig" className="mb-1.5 block">Designation</Label>
+                <select
+                  id="fac_desig"
                   required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Department
-                  </label>
-                  <select
-                    value={formData.dept_id}
-                    onChange={(e) => setFormData({ ...formData, dept_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
-                  >
-                    {departments.map((d) => (
-                      <option key={d.dept_id} value={d.dept_id.toString()}>
-                        {d.dept_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Designation
-                  </label>
-                  <select
-                    value={formData.designation}
-                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
-                  >
-                    <option value="Professor">Professor</option>
-                    <option value="Associate Professor">Associate Professor</option>
-                    <option value="Assistant Professor">Assistant Professor</option>
-                    <option value="Adjunct Lecturer">Adjunct Lecturer</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Max Weekly Teaching Slots (1 - 30)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="30"
-                  value={formData.max_weekly_slots}
-                  onChange={(e) => setFormData({ ...formData, max_weekly_slots: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  required
-                />
-                <span className="text-[11px] text-gray-400">Institutional standard is 14–16 slots/week.</span>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50"
+                  value={formData.designation}
+                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                  className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium shadow-sm transition-colors"
-                >
-                  {submitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Faculty'}
-                </button>
+                  <option value="Professor">Professor</option>
+                  <option value="Associate Professor">Associate Professor</option>
+                  <option value="Assistant Professor">Assistant Professor</option>
+                  <option value="Adjunct Lecturer">Adjunct Lecturer</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Faculty Timetable Modal */}
-      {timetableTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl border border-gray-100 animate-scale-up">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 font-bold flex items-center justify-center text-sm">
-                  {timetableTarget.faculty_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{timetableTarget.faculty_name}'s Timetable</h3>
-                  <p className="text-xs text-gray-400">
-                    {timetableTarget.designation} &bull; {timetableTarget.dept_name || `Dept #${timetableTarget.dept_id}`}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setTimetableTarget(null)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
-            <div className="p-6">
-              {loadingTimetable ? (
-                <div className="py-12 text-center text-gray-400">
-                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                  <span>Fetching faculty schedule...</span>
-                </div>
-              ) : timetableData.length === 0 ? (
-                <div className="py-12 text-center text-gray-400">
-                  <Calendar className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                  <p className="font-medium text-gray-600">No scheduled sessions</p>
-                  <p className="text-xs text-gray-400">This instructor currently has zero assigned timetable commitments.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs text-gray-500 font-medium pb-2 border-b">
-                    <span>{timetableData.length} active teaching periods</span>
-                    <span>Max Allowed: {timetableTarget.max_weekly_slots} slots</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
-                    {timetableData.map((s: any) => (
-                      <div
-                        key={s.schedule_id}
-                        className={`p-3.5 rounded-xl border flex flex-col justify-between gap-2 ${
-                          s.slot_type === 'Lab'
-                            ? 'bg-emerald-50/40 border-emerald-200'
-                            : 'bg-amber-50/40 border-amber-200'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="font-bold text-gray-900 text-sm">{s.course_code}</div>
-                            <div className="text-xs text-gray-600 line-clamp-1">{s.course_name}</div>
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            s.slot_type === 'Lab' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            Slot {s.slot_name || s.slot_id}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-200/50">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-gray-400" />
-                            <span>Day {s.day_of_week} &bull; {s.start_time?.substring(0, 5)} - {s.end_time?.substring(0, 5)}</span>
-                          </div>
-                          <div className="flex items-center gap-1 font-semibold text-gray-700">
-                            <Building className="w-3.5 h-3.5 text-gray-400" />
-                            <span>{s.room_number}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div>
+              <Label htmlFor="fac_quota" className="mb-1.5 block">Weekly Max Periods Quota (1–30)</Label>
+              <Input
+                id="fac_quota"
+                type="number"
+                min={1}
+                max={30}
+                required
+                value={formData.max_weekly_slots}
+                onChange={(e) => setFormData({ ...formData, max_weekly_slots: e.target.value })}
+              />
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Cascade Deletion Modal */}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                {isEditing ? 'Save Changes' : 'Create Faculty'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Faculty Timetable Viewer Modal */}
+      <Dialog open={!!timetableTarget} onOpenChange={(open) => !open && setTimetableTarget(null)}>
+        <DialogContent onClose={() => setTimetableTarget(null)} className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              Weekly Teaching Timetable: {timetableTarget?.faculty_name}
+            </DialogTitle>
+            <DialogDescription>
+              {timetableTarget?.designation} • {timetableTarget?.dept_name} ({timetableData.length} periods active)
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingTimetable ? (
+            <div className="py-12 flex items-center justify-center gap-2 text-slate-500">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+              <span>Loading schedule sessions...</span>
+            </div>
+          ) : timetableData.length === 0 ? (
+            <div className="py-12 text-center text-slate-400">
+              <Calendar className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+              <p className="font-semibold text-slate-700">No active classes allocated</p>
+              <p className="text-xs text-slate-400 mt-1">This instructor has zero active classroom or lab sessions.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-[60vh] border border-slate-100 rounded-xl">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Day & Time</TableHead>
+                    <TableHead>Course</TableHead>
+                    <TableHead>Batch</TableHead>
+                    <TableHead>Room</TableHead>
+                    <TableHead>Type</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {timetableData.map((session, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="font-medium text-xs">
+                        Day {session.day_of_week} ({session.start_time?.substring(0, 5)} – {session.end_time?.substring(0, 5)})
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold text-slate-900">{session.course_name}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">{session.course_code}</div>
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-600">
+                        Yr {session.year_of_study} - {session.section}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono">{session.room_number}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={session.slot_type === 'Lab' ? 'lab' : 'theory'}>
+                          {session.slot_name || session.slot_type}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTimetableTarget(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cascade Delete Modal */}
       {deleteTarget && (
         <CascadeDeleteModal
-          isOpen={true}
+          isOpen={!!deleteTarget}
           onClose={() => setDeleteTarget(null)}
-          onConfirm={async () => {
-            await deleteFaculty(deleteTarget.faculty_id);
-            showToast(`Faculty member "${deleteTarget.faculty_name}" deleted.`);
-            setDeleteTarget(null);
-            loadData();
-          }}
+          onConfirm={handleDelete}
           title="Delete Faculty Member"
-          itemName={deleteTarget.faculty_name}
+          itemName={`${deleteTarget.faculty_name} (${deleteTarget.designation})`}
           itemType="faculty"
-          fetchImpact={async () => {
-            const impact = await fetchFacultyImpact(deleteTarget.faculty_id);
-            return {
-              schedules_count: impact.schedules_count
-            };
-          }}
+          fetchImpact={() => fetchFacultyImpact(deleteTarget.faculty_id)}
         />
       )}
     </div>

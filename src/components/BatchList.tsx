@@ -1,420 +1,548 @@
-import { useEffect, useState } from 'react';
-import { fetchBatches, createBatch, updateBatch, deleteBatch, fetchBatchImpact, fetchDepartments, Department } from '../lib/api';
-import { Users, Search, Plus, Pencil, Trash2, Eye, X, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import {
+  fetchBatches,
+  createBatch,
+  updateBatch,
+  deleteBatch,
+  fetchBatchImpact,
+  fetchDepartments,
+  Department,
+} from '../lib/api';
+import {
+  Users,
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  AlertCircle,
+  Loader2,
+  Eye,
+  Sparkles,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { CascadeDeleteModal } from './CascadeDeleteModal';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from './ui/dialog';
 
 interface Batch {
-    batch_id: string;
-    year_of_study: number;
-    section: string;
-    student_count: number;
-    dept_id: number;
-    dept_name?: string;
+  batch_id: string;
+  year_of_study: number;
+  section: string;
+  student_count: number;
+  dept_id: number;
+  dept_name?: string;
 }
 
 export default function BatchList() {
-    const { user } = useAuth();
-    const isCoordinator = user?.role === 'coordinator';
+  const { user } = useAuth();
+  const isCoordinator = user?.role === 'coordinator';
 
-    const [batches, setBatches] = useState<Batch[]>([]);
-    const [departments, setDepartments] = useState<Department[]>([]);
-    const [loading, setLoading] = useState(true);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    // Filters
-    const [searchQuery, setSearchQuery] = useState('');
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
 
-    // Form
-    const [form, setForm] = useState({ batch_id: '', year_of_study: '1', section: 'A', student_count: '', dept_id: '1' });
-    const [showForm, setShowForm] = useState(false);
-    const [errorMsg, setErrorMsg] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
+  // Form
+  const [form, setForm] = useState({
+    batch_id: '',
+    year_of_study: '1',
+    section: 'A',
+    student_count: '',
+    dept_id: '1',
+  });
+  const [showForm, setShowForm] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [creating, setCreating] = useState(false);
 
-    // Edit Modal State
-    const [editTarget, setEditTarget] = useState<Batch | null>(null);
-    const [editForm, setEditForm] = useState({ year_of_study: '1', section: 'A', student_count: '', dept_id: '1' });
-    const [editError, setEditError] = useState('');
-    const [editLoading, setEditLoading] = useState(false);
+  // Edit Modal State
+  const [editTarget, setEditTarget] = useState<Batch | null>(null);
+  const [editForm, setEditForm] = useState({
+    year_of_study: '1',
+    section: 'A',
+    student_count: '',
+    dept_id: '1',
+  });
+  const [editError, setEditError] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
 
-    // Cascade delete state
-    const [deleteTarget, setDeleteTarget] = useState<Batch | null>(null);
+  // Cascade delete state
+  const [deleteTarget, setDeleteTarget] = useState<Batch | null>(null);
 
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setErrorMsg('');
-        setSuccessMsg('');
-        try {
-            await createBatch({ 
-                ...form, 
-                batch_id: parseInt(form.batch_id), 
-                year_of_study: parseInt(form.year_of_study),
-                student_count: parseInt(form.student_count),
-                dept_id: parseInt(form.dept_id)
-            });
-            setSuccessMsg('Batch created successfully!');
-            setForm({ batch_id: '', year_of_study: '1', section: 'A', student_count: '', dept_id: departments[0]?.dept_id.toString() || '1' });
-            setShowForm(false);
-            loadData();
-        } catch (err: any) {
-            setErrorMsg(err.message || 'An error occurred');
-        }
-    };
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [batchData, deptData] = await Promise.all([
+        fetchBatches(),
+        fetchDepartments(),
+      ]);
+      setBatches(batchData);
+      setDepartments(deptData);
+      if (deptData.length > 0 && !form.dept_id) {
+        setForm((f) => ({ ...f, dept_id: deptData[0].dept_id.toString() }));
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const handleEditSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editTarget) return;
-        setEditError('');
-        setEditLoading(true);
-        try {
-            await updateBatch(editTarget.batch_id, {
-                year_of_study: parseInt(editForm.year_of_study),
-                section: editForm.section.trim().toUpperCase(),
-                student_count: parseInt(editForm.student_count),
-                dept_id: parseInt(editForm.dept_id)
-            });
-            setEditTarget(null);
-            loadData();
-        } catch (err: any) {
-            setEditError(err.message || 'Failed to update batch');
-        } finally {
-            setEditLoading(false);
-        }
-    };
+  useEffect(() => {
+    loadData();
+  }, []);
 
-    const confirmDelete = async () => {
-        if (!deleteTarget) return;
-        await deleteBatch(deleteTarget.batch_id.toString());
-        await loadData();
-    };
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    setCreating(true);
+    try {
+      await createBatch({
+        batch_id: parseInt(form.batch_id),
+        year_of_study: parseInt(form.year_of_study),
+        section: form.section.trim().toUpperCase(),
+        student_count: parseInt(form.student_count),
+        dept_id: parseInt(form.dept_id),
+      });
+      setSuccessMsg('Batch created successfully!');
+      setForm({
+        batch_id: '',
+        year_of_study: '1',
+        section: 'A',
+        student_count: '',
+        dept_id: departments[0]?.dept_id.toString() || '1',
+      });
+      setShowForm(false);
+      await loadData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An error occurred');
+    } finally {
+      setCreating(false);
+    }
+  };
 
-    useEffect(() => {
-        loadData();
-    }, []);
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    setEditError('');
+    setEditLoading(true);
+    try {
+      await updateBatch(editTarget.batch_id, {
+        year_of_study: parseInt(editForm.year_of_study),
+        section: editForm.section.trim().toUpperCase(),
+        student_count: parseInt(editForm.student_count),
+        dept_id: parseInt(editForm.dept_id),
+      });
+      setEditTarget(null);
+      await loadData();
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update batch');
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
-    const loadData = async () => {
-        try {
-            setLoading(true);
-            const [batchData, deptData] = await Promise.all([
-                fetchBatches(),
-                fetchDepartments()
-            ]);
-            setBatches(batchData);
-            setDepartments(deptData);
-            if (deptData.length > 0 && !form.dept_id) {
-                setForm(f => ({ ...f, dept_id: deptData[0].dept_id.toString() }));
-            }
-        } catch (error) {
-            console.error('Error fetching data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await deleteBatch(deleteTarget.batch_id.toString());
+    await loadData();
+  };
 
-    const filteredBatches = batches.filter(batch => {
-        const matchesSearch = batch.section.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                              batch.year_of_study.toString().includes(searchQuery) ||
-                              (batch.dept_name && batch.dept_name.toLowerCase().includes(searchQuery.toLowerCase()));
-        return matchesSearch;
-    });
-
+  const filteredBatches = batches.filter((batch) => {
     return (
-        <div className="space-y-5">
-            {/* Header & Role Notice */}
-            <div className="flex items-center justify-between">
-                {isCoordinator ? (
-                    <button 
-                        onClick={() => setShowForm(!showForm)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
-                    >
-                        <Plus className={`w-4 h-4 transition-transform ${showForm ? 'rotate-45' : ''}`} />
-                        {showForm ? 'Cancel' : 'Add New Batch'}
-                    </button>
-                ) : (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium rounded-xl">
-                        <Eye className="w-3.5 h-3.5 text-slate-500" />
-                        Viewer Mode — Batch creation and deletion restricted to Coordinators
-                    </div>
-                )}
-            </div>
-
-            {isCoordinator && showForm && (
-                <div className="card p-5 animate-fade-up">
-                    <h2 className="text-lg font-bold text-gray-800 mb-4">Create New Batch</h2>
-                    {errorMsg && <div className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm">{errorMsg}</div>}
-                    {successMsg && <div className="mb-4 bg-emerald-50 text-emerald-600 px-4 py-3 rounded-xl text-sm">{successMsg}</div>}
-                    
-                    <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Manual Batch ID</label>
-                            <input required type="number" placeholder="e.g. 204" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.batch_id} onChange={e => setForm({...form, batch_id: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Year of Study</label>
-                            <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-white" value={form.year_of_study} onChange={e => setForm({...form, year_of_study: e.target.value})}>
-                                <option value="1">Year 1</option>
-                                <option value="2">Year 2</option>
-                                <option value="3">Year 3</option>
-                                <option value="4">Year 4</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Section</label>
-                            <input required maxLength={1} type="text" placeholder="e.g. A" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm uppercase" value={form.section} onChange={e => setForm({...form, section: e.target.value.toUpperCase()})} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Student Count</label>
-                            <input required min="1" type="number" placeholder="e.g. 60" className="w-full border border-gray-200 rounded-xl p-2.5 text-sm" value={form.student_count} onChange={e => setForm({...form, student_count: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Department</label>
-                            <select 
-                                required 
-                                className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-white" 
-                                value={form.dept_id} 
-                                onChange={e => setForm({...form, dept_id: e.target.value})}
-                            >
-                                {departments.map(d => (
-                                    <option key={d.dept_id} value={d.dept_id.toString()}>
-                                        {d.dept_name} (ID: {d.dept_id})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="md:col-span-5 mt-2">
-                            <button type="submit" className="px-5 py-2.5 bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-md hover:bg-blue-700 transition-colors">Create Batch</button>
-                        </div>
-                    </form>
-                </div>
-            )}
-
-            {/* Directory Card */}
-            <div className="card p-5 animate-fade-up">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                            <Users className="w-4 h-4" />
-                        </div>
-                        <h2 className="text-lg font-bold text-gray-800">Batch Directory</h2>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search by section/year..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 pr-3 py-1.5 border border-gray-200 rounded-xl text-xs bg-gray-50 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors w-48"
-                            />
-                        </div>
-                        <span className="text-xs text-gray-400 font-medium bg-gray-50 px-3 py-1 rounded-lg">{filteredBatches.length} batches</span>
-                    </div>
-                </div>
-                
-                {loading ? (
-                    <div className="p-8 text-center">
-                        <div className="flex items-center justify-center gap-3">
-                            <div className="w-6 h-6 border-[3px] border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-                            <span className="text-gray-400 text-sm">Loading directory...</span>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="premium-table">
-                            <thead>
-                                <tr>
-                                    <th>Batch ID</th>
-                                    <th>Year of Study</th>
-                                    <th>Section</th>
-                                    <th>Student Count</th>
-                                    <th>Department</th>
-                                    {isCoordinator && <th></th>}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredBatches.length > 0 ? filteredBatches.map((batch, index) => (
-                                    <tr key={index}>
-                                        <td className="font-semibold text-gray-900">{batch.batch_id}</td>
-                                        <td>
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600">
-                                                Year {batch.year_of_study}
-                                            </span>
-                                        </td>
-                                        <td className="font-semibold text-gray-800">{batch.section}</td>
-                                        <td className="font-medium text-blue-600">{batch.student_count} Students</td>
-                                        <td className="text-gray-500 text-sm">{batch.dept_name || `Dept #${batch.dept_id}`}</td>
-                                        {isCoordinator && (
-                                            <td className="text-right">
-                                                <button 
-                                                    onClick={() => {
-                                                        setEditTarget(batch);
-                                                        setEditForm({
-                                                            year_of_study: batch.year_of_study.toString(),
-                                                            section: batch.section,
-                                                            student_count: batch.student_count.toString(),
-                                                            dept_id: batch.dept_id.toString()
-                                                        });
-                                                        setEditError('');
-                                                    }}
-                                                    className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors mr-1"
-                                                    title="Edit Batch"
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button 
-                                                    onClick={() => setDeleteTarget(batch)}
-                                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Delete Batch"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </td>
-                                        )}
-                                    </tr>
-                                )) : null}
-                                {filteredBatches.length === 0 && (
-                                    <tr>
-                                        <td colSpan={isCoordinator ? 6 : 5} className="text-center py-8 text-gray-400">
-                                            No batches match your filter criteria.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {/* Edit Batch Modal */}
-            {editTarget && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden">
-                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                                    <Pencil className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <h3 className="text-base font-bold text-slate-800">Edit Batch #{editTarget.batch_id}</h3>
-                                    <p className="text-xs text-slate-500">Modify cohort configuration and size</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setEditTarget(null)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
-                            {editError && (
-                                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2">
-                                    <AlertCircle className="w-4 h-4 shrink-0" />
-                                    <span>{editError}</span>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Batch ID (Locked)</label>
-                                    <input
-                                        type="text"
-                                        disabled
-                                        value={editTarget.batch_id}
-                                        className="w-full border border-gray-200 bg-gray-50 rounded-xl p-2.5 text-sm font-semibold text-gray-500 cursor-not-allowed"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Department</label>
-                                    <select
-                                        required
-                                        value={editForm.dept_id}
-                                        onChange={(e) => setEditForm({ ...editForm, dept_id: e.target.value })}
-                                        className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                                    >
-                                        {departments.map(d => (
-                                            <option key={d.dept_id} value={d.dept_id.toString()}>
-                                                {d.dept_name} (ID: {d.dept_id})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-3">
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Year of Study</label>
-                                    <select
-                                        required
-                                        value={editForm.year_of_study}
-                                        onChange={(e) => setEditForm({ ...editForm, year_of_study: e.target.value })}
-                                        className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                                    >
-                                        <option value="1">Year 1</option>
-                                        <option value="2">Year 2</option>
-                                        <option value="3">Year 3</option>
-                                        <option value="4">Year 4</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Section</label>
-                                    <input
-                                        required
-                                        maxLength={1}
-                                        type="text"
-                                        value={editForm.section}
-                                        onChange={(e) => setEditForm({ ...editForm, section: e.target.value.toUpperCase() })}
-                                        className="w-full border border-gray-200 rounded-xl p-2.5 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Student Count</label>
-                                    <input
-                                        required
-                                        min="1"
-                                        type="number"
-                                        value={editForm.student_count}
-                                        onChange={(e) => setEditForm({ ...editForm, student_count: e.target.value })}
-                                        className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                                    />
-                                </div>
-                            </div>
-                            <p className="text-[11px] text-gray-400">Note: Database triggers enforce that student count does not exceed room capacity in existing scheduled slots.</p>
-
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setEditTarget(null)}
-                                    className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={editLoading}
-                                    className="px-5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition-colors disabled:opacity-50"
-                                >
-                                    {editLoading ? 'Saving...' : 'Save Changes'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Cascade Delete Modal */}
-            {deleteTarget && (
-                <CascadeDeleteModal
-                    isOpen={!!deleteTarget}
-                    onClose={() => setDeleteTarget(null)}
-                    onConfirm={confirmDelete}
-                    title="Delete Batch"
-                    itemName={`Batch ${deleteTarget.batch_id} (Year ${deleteTarget.year_of_study}-${deleteTarget.section})`}
-                    itemType="batch"
-                    fetchImpact={() => fetchBatchImpact(deleteTarget.batch_id)}
-                />
-            )}
-        </div>
+      batch.section.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      batch.year_of_study.toString().includes(searchQuery) ||
+      (batch.dept_name && batch.dept_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      batch.batch_id.toString().includes(searchQuery)
     );
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Top Banner / Actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Users className="w-7 h-7 text-primary" />
+            Student Cohorts & Batches
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Manage academic batches, student headcounts, and departmental affiliations
+          </p>
+        </div>
+
+        {isCoordinator ? (
+          <Button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            {showForm ? 'Cancel Form' : 'Add New Batch'}
+          </Button>
+        ) : (
+          <Badge variant="outline" className="flex items-center gap-1.5 py-1.5 px-3">
+            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+            <span>Viewer Mode — Read-Only</span>
+          </Badge>
+        )}
+      </div>
+
+      {/* Success Notification */}
+      {successMsg && (
+        <Alert variant="success" className="animate-fade-in">
+          <Sparkles className="w-4 h-4" />
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription>{successMsg}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Creation Drawer / Card */}
+      {showForm && (
+        <Card className="animate-fade-up border-primary/20 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base text-foreground">Create New Academic Batch</CardTitle>
+            <CardDescription>
+              Assign unique identifier, curricular year, section, and total registered students
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {errorMsg && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="w-4 h-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{errorMsg}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div>
+                <Label htmlFor="batch-id">Batch ID (Numeric)</Label>
+                <Input
+                  id="batch-id"
+                  required
+                  type="number"
+                  placeholder="e.g. 204"
+                  value={form.batch_id}
+                  onChange={(e) => setForm({ ...form, batch_id: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="year-study">Year of Study</Label>
+                <select
+                  id="year-study"
+                  required
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={form.year_of_study}
+                  onChange={(e) => setForm({ ...form, year_of_study: e.target.value })}
+                >
+                  <option value="1">Year 1</option>
+                  <option value="2">Year 2</option>
+                  <option value="3">Year 3</option>
+                  <option value="4">Year 4</option>
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="batch-section">Section</Label>
+                <Input
+                  id="batch-section"
+                  required
+                  maxLength={1}
+                  placeholder="e.g. A"
+                  className="uppercase font-semibold"
+                  value={form.section}
+                  onChange={(e) => setForm({ ...form, section: e.target.value.toUpperCase() })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="student-count">Student Count</Label>
+                <Input
+                  id="student-count"
+                  required
+                  min="1"
+                  type="number"
+                  placeholder="e.g. 60"
+                  value={form.student_count}
+                  onChange={(e) => setForm({ ...form, student_count: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="dept-select">Department</Label>
+                <select
+                  id="dept-select"
+                  required
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={form.dept_id}
+                  onChange={(e) => setForm({ ...form, dept_id: e.target.value })}
+                >
+                  {departments.map((d) => (
+                    <option key={d.dept_id} value={d.dept_id.toString()}>
+                      {d.dept_name} (ID: {d.dept_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-5 flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={creating}>
+                  {creating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Create Batch
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Directory Card */}
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 gap-3">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" />
+            <CardTitle className="text-base">Batch Directory</CardTitle>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search batch/dept..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 w-48 text-xs"
+              />
+            </div>
+            <Badge variant="outline">{filteredBatches.length} batches</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="flex items-center justify-center gap-3">
+                <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                <span className="text-muted-foreground text-sm font-medium">Loading batch directory...</span>
+              </div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Batch ID</TableHead>
+                  <TableHead>Year of Study</TableHead>
+                  <TableHead>Section</TableHead>
+                  <TableHead>Registered Students</TableHead>
+                  <TableHead>Academic Department</TableHead>
+                  {isCoordinator && <TableHead className="text-right">Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredBatches.length > 0 ? (
+                  filteredBatches.map((batch) => (
+                    <TableRow key={batch.batch_id}>
+                      <TableCell className="font-semibold text-foreground">
+                        #{batch.batch_id}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">Year {batch.year_of_study}</Badge>
+                      </TableCell>
+                      <TableCell className="font-bold text-foreground">
+                        Sec {batch.section}
+                      </TableCell>
+                      <TableCell className="font-medium text-foreground/80">
+                        {batch.student_count} Students
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {batch.dept_name || `Department #${batch.dept_id}`}
+                      </TableCell>
+                      {isCoordinator && (
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 mr-1"
+                            onClick={() => {
+                              setEditTarget(batch);
+                              setEditForm({
+                                year_of_study: batch.year_of_study.toString(),
+                                section: batch.section,
+                                student_count: batch.student_count.toString(),
+                                dept_id: batch.dept_id.toString(),
+                              });
+                              setEditError('');
+                            }}
+                            title="Edit Batch"
+                          >
+                            <Pencil className="w-4 h-4 text-primary" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(batch)}
+                            title="Delete Batch"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={isCoordinator ? 6 : 5} className="text-center py-8 text-muted-foreground">
+                      No student cohorts match your search query.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Edit Batch Dialog */}
+      {editTarget && (
+        <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <Pencil className="w-4 h-4" />
+                </div>
+                <div>
+                  <DialogTitle>Edit Batch #{editTarget.batch_id}</DialogTitle>
+                  <DialogDescription>Modify cohort configuration, section, and enrolled headcount</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
+              {editError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="w-4 h-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{editError}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-batch-id">Batch ID (Locked)</Label>
+                  <Input
+                    id="edit-batch-id"
+                    disabled
+                    value={editTarget.batch_id}
+                    className="bg-muted cursor-not-allowed font-semibold text-muted-foreground"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-dept-id">Department</Label>
+                  <select
+                    id="edit-dept-id"
+                    required
+                    value={editForm.dept_id}
+                    onChange={(e) => setEditForm({ ...editForm, dept_id: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    {departments.map((d) => (
+                      <option key={d.dept_id} value={d.dept_id.toString()}>
+                        {d.dept_name} (ID: {d.dept_id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label htmlFor="edit-year">Year of Study</Label>
+                  <select
+                    id="edit-year"
+                    required
+                    value={editForm.year_of_study}
+                    onChange={(e) => setEditForm({ ...editForm, year_of_study: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="1">Year 1</option>
+                    <option value="2">Year 2</option>
+                    <option value="3">Year 3</option>
+                    <option value="4">Year 4</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="edit-section">Section</Label>
+                  <Input
+                    id="edit-section"
+                    required
+                    maxLength={1}
+                    value={editForm.section}
+                    onChange={(e) => setEditForm({ ...editForm, section: e.target.value.toUpperCase() })}
+                    className="uppercase font-semibold"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-student-count">Student Count</Label>
+                  <Input
+                    id="edit-student-count"
+                    required
+                    min="1"
+                    type="number"
+                    value={editForm.student_count}
+                    onChange={(e) => setEditForm({ ...editForm, student_count: e.target.value })}
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Note: Database triggers enforce that student count does not exceed room capacity in existing scheduled slots.
+              </p>
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={() => setEditTarget(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={editLoading}>
+                  {editLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Cascade Delete Modal */}
+      {deleteTarget && (
+        <CascadeDeleteModal
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+          title="Delete Batch"
+          itemName={`Batch ${deleteTarget.batch_id} (Year ${deleteTarget.year_of_study}-${deleteTarget.section})`}
+          itemType="batch"
+          fetchImpact={() => fetchBatchImpact(deleteTarget.batch_id)}
+        />
+      )}
+    </div>
+  );
 }
