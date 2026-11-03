@@ -1,13 +1,18 @@
-# Implementation Plan: Faculty Management & Unified Slot-Based Scheduling
+# Implementation Plan: Faculty Management & Unified Academic Scheduling
 
 ## Executive Summary
-This implementation plan outlines the architecture, database schema, conflict engine, API contracts, and user interface for the **Faculty Management & Academic Scheduling** module in the **Classroom & Lab Utilization System (CLUS)**.
+This implementation plan outlines the architecture, database schema, conflict engine, API contracts, user interface, and verification strategy for the **Faculty Management & Academic Scheduling** module in the **Classroom & Lab Utilization System (CLUS)**.
 
-It incorporates the university **Unified Time Table (B.Tech / M.Tech Batch 2)** specification, including:
-1. **New 50-Slot Timetable Grid (Hours 1 to 10)** matching the official timetable hours (08:00 to 16:50, excluding slots 11 & 12).
-2. **Clubbed / Named Slot Scheduling Engine**: Theory slot groups (Slots `A`, `B`, `C`, `D`, `E`, `F`, `G`) and Lab slot groups (`P1–P5`, `P16–P20`, etc.). Selecting a slot name schedules all linked hours across the week together.
-3. **Faculty 8–4 vs 9–5 Shift Rule (First Slot vs Last Slot Protection)**: If a faculty member is assigned to the first period of any day (08:00–08:50), they cannot be assigned to the last period (16:00–16:50) on that same day.
-4. **Course-Batch Faculty Invariance Rule**: A course for a specific batch must be handled by the same faculty member across all scheduled sessions.
+### Confirmed Requirements & Architectural Decisions:
+1. **Fresh Seed Data**: Rebuild `database/seed.sql` with a clean, fully compliant dataset (Departments, Faculty, Rooms, 9-character Courses, Batches, and Schedules adhering to all new rules).
+2. **Strict 9-Character Course Code Rule**: Every course code is exactly **9 alphanumeric characters**, with the 9th character designating the type:
+   - `...T` = **Theory Only** (e.g. `18CSC301T`): Slots `A`–`G`, Room: `Classroom` or `Lecture Hall`.
+   - `...P` = **Practical Only** (e.g. `18CSC206P`): Slots `P#`, Room: `Lab` (at most 2 consecutive slots at once).
+   - `...J` = **Joint (Theory + Practical)** (e.g. `18CSC205J`): Has Theory sessions and Lab sessions (max 2 slots), handled by the **exact same instructor**.
+3. **Unified Time Slot Grid (Hours 1 to 10)**: 50 active slots per week (08:00 to 16:50, excluding slots 11 & 12).
+4. **Faculty 8–4 vs 9–5 Shift Rule**: If an instructor is assigned to Hour 1 (08:00–08:50) on any day, they cannot be assigned to Hour 10 (16:00–16:50) on that same day.
+5. **Simultaneous Lab Allocations**: Practical sessions are booked in pairs of **at most 2 consecutive slots** (e.g. `P1–P2`, `P4–P5`), never 5 at once.
+6. **Faculty Invariance & Reassignment**: A course for a batch is locked to one faculty member. If a professor leaves or resigns, schedules can be deleted and re-allocated to a new instructor.
 
 ---
 
@@ -15,97 +20,76 @@ It incorporates the university **Unified Time Table (B.Tech / M.Tech Batch 2)** 
 
 ```mermaid
 graph TD
-    subgraph UI ["Frontend (Vite / React :5174)"]
-        Nav["Navigation Bar"] --> TabF["Faculty Management Tab"]
-        Nav --> TabS["Schedule Timetable Tab"]
-        TabF --> FWorkload["Faculty Workload & Roster"]
-        TabS --> SlotGrid["Unified Slot Grid (5 Days × 10 Hours)"]
-        TabS --> ClubbedAlloc["Slot-Group Allocator (A, B, C, D, E, F, G, P#)"]
-        TabS --> FFilt["Filter by Faculty"]
+    subgraph GridEngine ["Unified Slot Engine (50 Slots)"]
+        Grid["5 Days × 10 Hours (08:00 - 16:50)"] --> TheoryGrp["Theory Groups: Slots A, B, C, D, E, F, G"]
+        Grid --> LabPairs["Lab Pairs: P1-P2, P4-P5, P16-P17... (Max 2 Slots)"]
     end
 
-    subgraph API ["Backend (Express / Node.js :5005)"]
-        FRoute["/api/faculty (CRUD & Profile)"]
-        SRoute["/api/schedules (Batch Slot Group & In-Place Edit)"]
-        FVal["validateFaculty & validateSlotGroup"]
-        RBAC["Coordinator Auth Required for Writes"]
+    subgraph ConsistencyEngine ["Validation & Conflict Engine"]
+        CodeTax["Course Code (9 chars: ...T, ...P, ...J)"] --> SlotMatch["Slot Type & Room Type Compatibility"]
+        SlotMatch --> Invariance["Course-Batch Faculty Invariance"]
+        Invariance --> ShiftGuard["8-4 vs 9-5 Shift Protection (Hr 1 vs Hr 10)"]
+        ShiftGuard --> DoubleBook["Room, Batch & Faculty Double-Booking"]
     end
 
     subgraph DB ["Database (MySQL 8.0)"]
         TableTS[("Time_Slot (50 slots with slot_name & hour_order)")]
         TableF[("Faculty Table")]
         TableS[("Course_Schedule (faculty_id FK)")]
-        Trig1["trg_faculty_double_booking"]
-        Trig2["trg_faculty_first_last_shift_conflict"]
-        Trig3["trg_course_batch_faculty_invariance"]
-        ViewS["View_Detailed_Schedule (Joined)"]
-        ViewW["View_Faculty_Workload"]
+        TableC[("Course (code VARCHAR(9) UNIQUE)")]
     end
 
-    UI --> API
-    API --> DB
+    GridEngine --> ConsistencyEngine
+    ConsistencyEngine --> DB
 ```
 
 ---
 
-## 1. Unified Time Slot Grid & Clubbed Slot Specifications
+## 1. Unified Time Slot Grid & Course Classification
 
-### 1.1 Period Timing (Hours 1 to 10)
-Slots 11 (04:50–05:30) and 12 (05:30–06:10) are omitted. The 10 active periods per day are:
+### 1.1 Period Timings (Hours 1 to 10)
+Slots 11 (04:50–05:30) and 12 (05:30–06:10) are omitted. Active periods:
 
-| Hour | Start Time | End Time | Duration | Notes |
-| :---: | :---: | :---: | :---: | :--- |
-| **1** | `08:00:00` | `08:50:00` | 50 mins | **First Slot** of the day (Shift 1 start) |
+| Hour | Start Time | End Time | Duration | Grid Role |
+| :---: | :---: | :---: | :---: | :---: |
+| **1** | `08:00:00` | `08:50:00` | 50 mins | Shift 1 Start (**First Slot**) |
 | **2** | `08:50:00` | `09:40:00` | 50 mins | |
-| **3** | `09:45:00` | `10:35:00` | 50 mins | 5-min passing break |
-| **4** | `10:40:00` | `11:30:00` | 50 mins | 5-min passing break |
-| **5** | `11:35:00` | `12:25:00` | 50 mins | 5-min passing break |
+| **3** | `09:45:00` | `10:35:00` | 50 mins | (5-min break) |
+| **4** | `10:40:00` | `11:30:00` | 50 mins | (5-min break) |
+| **5** | `11:35:00` | `12:25:00` | 50 mins | (5-min break) |
 | **6** | `12:30:00` | `13:20:00` | 50 mins | Midday transition |
-| **7** | `13:25:00` | `14:15:00` | 50 mins | 5-min passing break |
-| **8** | `14:20:00` | `15:10:00` | 50 mins | 5-min passing break |
-| **9** | `15:10:00` | `16:00:00` | 50 mins | Shift 1 ends at 16:00 |
-| **10** | `16:00:00` | `16:50:00` | 50 mins | **Last Slot** of the day (Shift 2 end) |
+| **7** | `13:25:00` | `14:15:00` | 50 mins | (5-min break) |
+| **8** | `14:20:00` | `15:10:00` | 50 mins | (5-min break) |
+| **9** | `15:10:00` | `16:00:00` | 50 mins | Shift 1 End (16:00) |
+| **10** | `16:00:00` | `16:50:00` | 50 mins | Shift 2 End (**Last Slot**) |
 
-### 1.2 Weekly Slot Mapping Matrix (Unified B.Tech / M.Tech Batch 2)
+### 1.2 Weekly Unified Slot Matrix (Batch 2)
 
 | Day | Hour 1 | Hour 2 | Hour 3 | Hour 4 | Hour 5 | Hour 6 | Hour 7 | Hour 8 | Hour 9 | Hour 10 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Day 1** | P1 | P2/X | P3/X | P4 | P5 | **A** | **A** | **F** | **F** | **G** |
-| **Day 2** | **B** | **B/X** | **G/X** | **G** | **A** | P16 | P17 | P18 | P19 | P20 |
-| **Day 3** | P21 | P22/X | P23/X | P24 | P25 | **C** | **C** | **A** | **D** | **B** |
-| **Day 4** | **D** | **D/X** | **B/X** | **E** | **C** | P36 | P37 | P38 | P39 | P40 |
-| **Day 5** | P41 | P42/X | P43/X | P44 | P45 | **E** | **E** | **C** | **F** | **D** |
+| **Day 1** | P1 | P2 | P3 | P4 | P5 | **A** | **A** | **F** | **F** | **G** |
+| **Day 2** | **B** | **B** | **G** | **G** | **A** | P16 | P17 | P18 | P19 | P20 |
+| **Day 3** | P21 | P22 | P23 | P24 | P25 | **C** | **C** | **A** | **D** | **B** |
+| **Day 4** | **D** | **D** | **B** | **E** | **C** | P36 | P37 | P38 | P39 | P40 |
+| **Day 5** | P41 | P42 | P43 | P44 | P45 | **E** | **E** | **C** | **F** | **D** |
 
 > [!NOTE]
-> **Theory Slot Groups**:
-> - **Slot A**: Day 1 (H6, H7), Day 2 (H5), Day 3 (H8) *(4 hrs/week)*
-> - **Slot B**: Day 2 (H1, H2), Day 3 (H10), Day 4 (H3) *(4 hrs/week)*
-> - **Slot C**: Day 3 (H6, H7), Day 4 (H5), Day 5 (H8) *(4 hrs/week)*
-> - **Slot D**: Day 3 (H9), Day 4 (H1, H2), Day 5 (H10) *(4 hrs/week)*
-> - **Slot E**: Day 4 (H4), Day 5 (H6, H7) *(3 hrs/week)*
-> - **Slot F**: Day 1 (H8, H9), Day 5 (H9) *(3 hrs/week)*
-> - **Slot G**: Day 1 (H10), Day 2 (H3, H4) *(3 hrs/week)*
->
-> **Lab Slot Blocks**:
-> - Day 1 Morning: `P1–P5` (Hours 1–5)
-> - Day 2 Afternoon: `P16–P20` (Hours 6–10)
-> - Day 3 Morning: `P21–P25` (Hours 1–5)
-> - Day 4 Afternoon: `P36–P40` (Hours 6–10)
-> - Day 5 Morning: `P41–P45` (Hours 1–5)
+> - **Theory Slot Groups**: `Slot A` (4 hrs), `Slot B` (4 hrs), `Slot C` (4 hrs), `Slot D` (4 hrs), `Slot E` (3 hrs), `Slot F` (3 hrs), `Slot G` (3 hrs). Selecting a Theory Slot Group books all linked periods together in one transaction.
+> - **Lab Slot Pairs**: Maximum 2 consecutive periods (e.g. `P1–P2`, `P4–P5`, `P16–P17`, `P18–P19`).
 
 ---
 
-## 2. Database Schema & Hard Integrity Constraints
+## 2. Database Schema Changes & Triggers
 
 ### 2.1 Update `Time_Slot` Schema
-Add `hour_order` (1–10) and `slot_name` (e.g. `'A'`, `'B'`, `'P1'`, etc.) to `Time_Slot`:
 ```sql
 ALTER TABLE Time_Slot 
   ADD COLUMN hour_order INT NOT NULL DEFAULT 1 CHECK (hour_order BETWEEN 1 AND 10),
-  ADD COLUMN slot_name VARCHAR(10) NOT NULL DEFAULT 'A';
+  ADD COLUMN slot_name VARCHAR(10) NOT NULL DEFAULT 'A',
+  ADD COLUMN slot_type ENUM('Theory', 'Lab') NOT NULL DEFAULT 'Theory';
 ```
 
-### 2.2 `Faculty` Table Definition
+### 2.2 New `Faculty` Table
 ```sql
 CREATE TABLE IF NOT EXISTS Faculty (
     faculty_id INT PRIMARY KEY,
@@ -126,83 +110,113 @@ ALTER TABLE Course_Schedule ADD CONSTRAINT fk_schedule_faculty
 CREATE INDEX idx_schedule_faculty ON Course_Schedule(faculty_id);
 ```
 
-### 2.4 Integrity Triggers
-
-#### Trigger 1: Faculty Double-Booking Prevention (`trg_check_faculty_double_booking`)
-- Enforced on both `BEFORE INSERT` and `BEFORE UPDATE`.
-- Rejects if `faculty_id` is already scheduled in any room at `NEW.slot_id`.
-- Error: `Double Booking Error: The faculty member is already scheduled for another class in this time slot!`
-
-#### Trigger 2: 8–4 vs 9–5 Shift Rule (`trg_check_faculty_shift_conflict`)
-- Runs `BEFORE INSERT` and `BEFORE UPDATE` on `Course_Schedule`.
-- If `NEW.slot_id` corresponds to **Hour 1** on Day $D$, verifies that the faculty member does NOT have any class at **Hour 10** on Day $D$.
-- If `NEW.slot_id` corresponds to **Hour 10** on Day $D$, verifies that the faculty member does NOT have any class at **Hour 1** on Day $D$.
-- Error: `Shift Violation Error: Faculty cannot be scheduled for both the first slot (08:00) and the last slot (16:00) on the same day!`
-
-#### Trigger 3: Course-Batch Faculty Invariance (`trg_check_course_batch_faculty_invariance`)
-- Runs `BEFORE INSERT` and `BEFORE UPDATE` on `Course_Schedule`.
-- Checks if another schedule already exists for the same `(course_id, batch_id)`.
-- If an existing schedule has `faculty_id IS NOT NULL` and `NEW.faculty_id != existing_faculty_id`, rejects the transaction.
-- Error: `Faculty Invariance Error: A course for a batch must be handled by the same faculty member across all scheduled sessions!`
-
----
-
-## 3. Backend API Endpoints & Business Logic
-
-### 3.1 Faculty Management Endpoints
-- `GET /api/faculty`: Returns all faculty with department name, designation, total weekly slots assigned, and utilization rate.
-- `POST /api/faculty`: Adds faculty with validation (Coordinator only).
-- `PUT /api/faculty/:faculty_id`: Updates faculty details / workload limit (Coordinator only).
-- `GET /api/faculty/:faculty_id/impact`: Cascade impact check (returns count of active schedules before deletion).
-- `DELETE /api/faculty/:faculty_id`: Deletes faculty (blocked if active schedules exist).
-- `GET /api/faculty/:faculty_id/timetable`: Returns the weekly timetable grid for that specific teacher.
-
-### 3.2 Clubbed Slot Group Scheduling Endpoint
-Add `POST /api/schedules/clubbed`:
-- Accepts: `{ course_id, batch_id, room_number, faculty_id, slot_name }`.
-- Fetches all `slot_id`s corresponding to `slot_name` (e.g. all 4 slots for Slot `A`).
-- Wraps insertions in a **single database transaction**:
-  - Automatically validates room capacity, batch conflicts, faculty double booking, and the 8–4 vs 9–5 shift rule.
-  - If any conflict occurs, rolls back cleanly and returns the specific conflicting slot to the user.
+### 2.4 Integrity Triggers (Executing in Strict Priority Order)
+1. **Trigger 1: Double-Booking Conflict (`trg_prevent_booking_conflict` & `trg_check_schedule_update`)**:
+   - Checks Room Double-Booking $\rightarrow$ `Double Booking Error`.
+   - Checks Batch Double-Booking $\rightarrow$ `Batch Conflict Error`.
+   - Checks Faculty Double-Booking $\rightarrow$ `Double Booking Error: The faculty member is already scheduled for another class in this time slot!`.
+   - Checks Room Capacity vs. Batch Size $\rightarrow$ `Capacity Error`.
+2. **Trigger 2: Course Type & Room Consistency (`trg_check_course_type_consistency`)**:
+   - Verifies 9th character of `Course.course_code`:
+     - `'T'`: Slot must be `'Theory'`, Room must be `'Classroom'` or `'Lecture Hall'`.
+     - `'P'`: Slot must be `'Lab'`, Room must be `'Lab'`.
+     - `'J'`: When in Theory slot $\rightarrow$ Room is Classroom/Lecture Hall; when in Lab slot $\rightarrow$ Room is Lab.
+3. **Trigger 3: 8–4 vs 9–5 Shift Rule (`trg_check_faculty_shift_conflict`)**:
+   - Rejects if the faculty member is scheduled for both Hour 1 (08:00) and Hour 10 (16:00) on the same day.
+   - Error: `Shift Violation Error: Faculty cannot be scheduled for both the first slot (08:00) and the last slot (16:00) on the same day!`
+4. **Trigger 4: Course-Batch Faculty Invariance (`trg_check_course_batch_faculty_invariance`)**:
+   - Ensures that all active schedules for a given `(course_id, batch_id)` have the exact same `faculty_id`.
+   - Error: `Faculty Invariance Error: A course for a batch must be handled by the same faculty member across all scheduled sessions!`
 
 ---
 
-## 4. Frontend Architecture & User Experience
+## 3. Fresh Master Seed Data (`database/seed.sql`)
 
-### 4.1 Faculty Management View (`FacultyList.tsx`)
-- Placed on the navigation bar as the **Faculty** tab.
-- **KPI Metrics**: Total Faculty, Department Distribution, Average Teaching Hours, Saturated Faculty (>85% load).
-- **Roster Table**:
-  - Name & Email, Department badge, Designation chip.
-  - **Workload Bar**: Progress bar showing `assigned / max_weekly_slots` with color warnings (green < 70%, amber 70–90%, red > 90%).
-  - Action buttons: View Timetable, Edit, Delete (with `CascadeDeleteModal`).
+1. **Departments**:
+   - Dept 1: `Computer Science and Engineering`
+   - Dept 2: `Electronics and Communication Engineering`
+2. **Rooms**:
+   - `UB101` (Classroom, capacity 65)
+   - `UB102` (Classroom, capacity 60)
+   - `UB201` (Lecture Hall, capacity 120)
+   - `LAB1` (Lab, capacity 40)
+   - `LAB2` (Lab, capacity 40)
+3. **Courses (9 Characters Strict)**:
+   - Course 101: `18CSC205J` (Database Management Systems - Joint)
+   - Course 102: `18CSC206P` (Operating Systems Lab - Practical)
+   - Course 103: `18CSC301T` (Artificial Intelligence - Theory)
+   - Course 201: `18ECC302T` (Digital Image Processing - Theory)
+4. **Batches**:
+   - Batch 201: Year 2, Sec A, 60 students (Dept 1)
+   - Batch 202: Year 2, Sec B, 58 students (Dept 1)
+   - Batch 203: Year 3, Sec A, 35 students (Dept 1 - suitable for labs)
+   - Batch 301: Year 3, Sec A, 45 students (Dept 2)
+5. **Faculty**:
+   - 1001: `Dr. Alan Turing` (`alan.turing@college.edu`, Professor, Dept 1, max 16 slots)
+   - 1002: `Dr. Grace Hopper` (`grace.hopper@college.edu`, Associate Professor, Dept 1, max 16 slots)
+   - 1003: `Dr. Claude Shannon` (`claude.shannon@college.edu`, Professor, Dept 2, max 16 slots)
+6. **Time Slots**:
+   - Full 50 slots (Days 1–5, Hours 1–10) with official timings and slot names (`P1`, `A`, `B`, etc.).
+7. **Schedules**:
+   - Schedule 1: `18CSC205J` (Theory component), Batch 201, `UB101`, Slot 6 (Day 1 Hr 6 - Slot A), Faculty 1001.
+   - Schedule 2: `18CSC206P` (Practical), Batch 203, `LAB1`, Slot 1 (Day 1 Hr 1 - Slot P1), Faculty 1002.
+   - Schedule 3: `18CSC301T` (Theory), Batch 201, `UB201`, Slot 14 (Day 2 Hr 4 - Slot G), Faculty 1001.
 
-### 4.2 Timetable Matrix View Upgrade (`ScheduleView.tsx`)
-- **Unified 10-Hour × 5-Day Grid**:
-  - Renders the exact matrix layout matching the official B.Tech/M.Tech timetable.
-  - Visual indicators for **Theory Slots** (yellow background) and **Lab Slots** (green background).
-  - Displays Course Code, Batch, Room, and Instructor Name with designation badge in each cell.
+---
+
+## 4. Backend Endpoints & Validation Layer
+
+### 4.1 Faculty Management Endpoints
+- `GET /api/faculty`: Returns all faculty with department, designation, and current workload.
+- `POST /api/faculty`: Add faculty with validation (Coordinator only).
+- `PUT /api/faculty/:faculty_id`: In-place updates (Coordinator only).
+- `GET /api/faculty/:faculty_id/impact`: Cascade impact before deletion.
+- `DELETE /api/faculty/:faculty_id`: Protected deletion (Coordinator only).
+- `GET /api/faculty/:faculty_id/timetable`: Specific weekly timetable for an instructor.
+
+### 4.2 Scheduling Endpoints
+- **`POST /api/schedules`**:
+  - Accepts single slot or 2-slot lab pair (`slot_ids: [1, 2]`).
+  - Supports `faculty_id`.
+- **`POST /api/schedules/clubbed`**:
+  - Accepts `{ course_id, batch_id, room_number, faculty_id, slot_name }`.
+  - Atomically allocates all linked periods for that slot group.
+- **`GET /api/departments/:dept_id/impact`**:
+  - Updated to return `faculty_count` alongside courses, batches, and schedules.
+
+### 4.3 Validation Layer (`server/validation.js`)
+- `validateCourse`: Enforces regex `/^[A-Za-z0-9]{8}[TPJ]$/`.
+- `validateFaculty`: Enforces positive `faculty_id`, valid email, existing department, valid designation, and `max_weekly_slots` between 1 and 30.
+
+---
+
+## 5. Frontend Architecture & User Interface
+
+### 5.1 Faculty Management Tab (`FacultyList.tsx`)
+- Navigation tab with `GraduationCap` icon in `DashboardLayout.tsx`.
+- Workload meters (`8/16 slots [████░░░░] 50%`) with color warning thresholds.
+- Edit / Delete with `CascadeDeleteModal.tsx`.
+
+### 5.2 Timetable Matrix View Upgrade (`ScheduleView.tsx` & `TimeSlotGrid.tsx`)
+- **Unified 10-Hour × 5-Day Matrix**:
+  - Renders Theory slots in amber/yellow and Lab slots in emerald/green.
+  - Cells display Course Code, Batch, Room, and Instructor Name with Designation chip.
 - **Filter by Faculty**:
-  - Dropdown to isolate and view any instructor's weekly schedule with one click.
-- **Clubbed Slot Allocation Modal**:
-  - Radio/Select to choose **Slot Group** (e.g. `Slot A (4 hrs)`, `Slot B (4 hrs)`, `Slot C (4 hrs)`, `Lab Day 1 (5 hrs)`).
-  - Automatically populates the assigned faculty if that course and batch were previously scheduled.
-  - Immediate client-side alert if assigning to a slot group violates the instructor's 8–4 vs 9–5 shift rule.
+  - One-click dropdown to view a specific teacher's weekly commitments.
+- **Clubbed Slot Selection**:
+  - Selecting Slot `A` highlights and selects all 4 corresponding slots across the week simultaneously.
+  - Lab booking allows selecting at most 2 consecutive lab periods.
+- **Course Management (`CourseList.tsx`)**:
+  - Course code input configured for 9 characters with auto-suggested suffix selector (`Theory [T]`, `Practical [P]`, `Joint [J]`).
 
 ---
 
-## 5. Verification & Testing Strategy
+## 6. Execution Phases & Verification
 
-### 5.1 Automated Test Suite (`test_faculty.cjs`)
-1. **Grid Verification**: Verify all 50 slots (Days 1–5, Hours 1–10) match correct start/end times and slot names.
-2. **Clubbed Slot Scheduling**: Schedule `Slot A` and verify that all 4 corresponding schedule records are created in one operation.
-3. **Double-Booking Prevention**: Attempt to allocate the same faculty in two different rooms at the same slot $\rightarrow$ expect `400 Double Booking Error`.
-4. **8–4 vs 9–5 Shift Enforcement**:
-   - Assign faculty to Day 1 Hour 1 (08:00–08:50).
-   - Attempt to assign same faculty to Day 1 Hour 10 (16:00–16:50) $\rightarrow$ expect `400 Shift Violation Error`.
-   - Verify that Day 1 Hour 9 (15:10–16:00) is permitted (within the 8:00–16:00 window).
-5. **Course-Batch Faculty Invariance**:
-   - Assign Teacher X to Course 101 for Batch 201 on Day 1.
-   - Attempt to assign Teacher Y to Course 101 for Batch 201 on Day 2 $\rightarrow$ expect `400 Faculty Invariance Error`.
-6. **Regression Suite**: Re-run `test_sprint2.cjs`, `test_sprint3.cjs`, and `test_sprint4.cjs` to confirm zero regressions across prior modules.
-7. **TypeScript Typecheck**: Ensure `npm run typecheck` passes with 0 errors.
+| Phase | Milestone | Deliverables |
+| :--- | :--- | :--- |
+| **Phase 1: DB Migration & Seed** | Database Upgrade | Execute SQL patch for `Time_Slot`, `Faculty`, triggers, and seed `seed.sql`. |
+| **Phase 2: Backend APIs** | Server & Validation | Implement `validateFaculty`, 9-char `validateCourse`, `/api/faculty` CRUD, and `/api/schedules/clubbed`. |
+| **Phase 3: Automated Test Suite** | Verification Suite | Create `test_faculty.cjs`, update `test_sprint2.cjs` and `test_sprint3.cjs` to align with fresh seed. All tests pass (100%). |
+| **Phase 4: Frontend Integration** | UI Views & Components | Create `FacultyList.tsx`, update `DashboardLayout.tsx`, `ScheduleView.tsx`, `TimeSlotGrid.tsx`, `CourseList.tsx`, and `api.ts`. |
+| **Phase 5: Full Regression Audit** | End-to-End Verification | Browser E2E verification, `npm run typecheck` (0 errors), all test suites pass. |
