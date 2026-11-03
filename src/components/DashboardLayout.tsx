@@ -45,6 +45,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from './ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -345,17 +346,20 @@ export default function DashboardLayout() {
 
                   <div>
                     <Label htmlFor="staff-role">Role</Label>
-                    <select
-                      id="staff-role"
+                    <Select
                       value={staffForm.role}
-                      onChange={(e) =>
-                        setStaffForm({ ...staffForm, role: e.target.value as 'coordinator' | 'viewer' })
+                      onValueChange={(val) =>
+                        setStaffForm({ ...staffForm, role: val as 'coordinator' | 'viewer' })
                       }
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
-                      <option value="viewer">Viewer (Read-Only Schedules & Analytics)</option>
-                      <option value="coordinator">Coordinator (Full Edit & Provisioning)</option>
-                    </select>
+                      <SelectTrigger id="staff-role">
+                        <SelectValue placeholder="Select Role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="viewer">Viewer (Read-Only Schedules & Analytics)</SelectItem>
+                        <SelectItem value="coordinator">Coordinator (Full Edit & Provisioning)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="sm:col-span-2 flex justify-end mt-1">

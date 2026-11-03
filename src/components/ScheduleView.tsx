@@ -19,6 +19,7 @@ import { Label } from './ui/label';
 import { Alert, AlertDescription } from './ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 
 interface Schedule {
     schedule_id: string;
@@ -305,39 +306,41 @@ export default function ScheduleView() {
                                 {/* Course */}
                                 <div>
                                     <Label htmlFor="sched_course" className="mb-1.5 block">Course</Label>
-                                    <select 
-                                        id="sched_course"
-                                        required 
-                                        className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500 truncate" 
+                                    <Select 
                                         value={form.course_id} 
-                                        onChange={(e) => setForm({...form, course_id: e.target.value})}
+                                        onValueChange={(val) => setForm({...form, course_id: val})}
                                     >
-                                        <option value="">Select Course</option>
-                                        {courses.map(c => (
-                                            <option key={c.course_id} value={c.course_id}>
-                                                {c.course_code} — {c.course_name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <SelectTrigger id="sched_course" className="h-9">
+                                            <SelectValue placeholder="Select Course" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {courses.map(c => (
+                                                <SelectItem key={c.course_id} value={c.course_id.toString()}>
+                                                    {c.course_code} — {c.course_name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
                                 {/* Batch */}
                                 <div>
                                     <Label htmlFor="sched_batch" className="mb-1.5 block">Batch</Label>
-                                    <select 
-                                        id="sched_batch"
-                                        required 
-                                        className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500 truncate" 
+                                    <Select 
                                         value={form.batch_id} 
-                                        onChange={(e) => setForm({...form, batch_id: e.target.value})}
+                                        onValueChange={(val) => setForm({...form, batch_id: val})}
                                     >
-                                        <option value="">Select Batch</option>
-                                        {batches.map(b => (
-                                            <option key={b.batch_id} value={b.batch_id}>
-                                                Year {b.year_of_study} - {b.section} ({b.student_count} students)
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <SelectTrigger id="sched_batch" className="h-9">
+                                            <SelectValue placeholder="Select Batch" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {batches.map(b => (
+                                                <SelectItem key={b.batch_id} value={b.batch_id.toString()}>
+                                                    Year {b.year_of_study} - {b.section} ({b.student_count} students)
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
                                 {/* Faculty */}
@@ -348,39 +351,43 @@ export default function ScheduleView() {
                                             <Badge variant="joint" className="text-[10px] py-0 px-1.5">Locked</Badge>
                                         )}
                                     </div>
-                                    <select 
-                                        id="sched_faculty"
-                                        className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500 truncate disabled:bg-slate-50 disabled:text-slate-500" 
+                                    <Select 
                                         value={form.faculty_id} 
                                         disabled={!!existingFacultyForCourseBatch}
-                                        onChange={(e) => setForm({...form, faculty_id: e.target.value})}
+                                        onValueChange={(val) => setForm({...form, faculty_id: val})}
                                     >
-                                        <option value="">No Faculty / Unassigned</option>
-                                        {facultyList.map(f => (
-                                            <option key={f.faculty_id} value={f.faculty_id}>
-                                                {f.faculty_name} ({f.designation || 'Faculty'})
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <SelectTrigger id="sched_faculty" className="h-9">
+                                            <SelectValue placeholder="No Faculty / Unassigned" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="">No Faculty / Unassigned</SelectItem>
+                                            {facultyList.map(f => (
+                                                <SelectItem key={f.faculty_id} value={f.faculty_id.toString()}>
+                                                    {f.faculty_name} ({f.designation || 'Faculty'})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
                                 {/* Room */}
                                 <div>
                                     <Label htmlFor="sched_room" className="mb-1.5 block">Room</Label>
-                                    <select 
-                                        id="sched_room"
-                                        required 
-                                        className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500 truncate" 
+                                    <Select 
                                         value={form.room_number} 
-                                        onChange={(e) => setForm({...form, room_number: e.target.value})}
+                                        onValueChange={(val) => setForm({...form, room_number: val})}
                                     >
-                                        <option value="">Select Room</option>
-                                        {rooms.map(r => (
-                                            <option key={r.room_number} value={r.room_number}>
-                                                {r.room_number} ({r.room_type}, Cap: {r.capacity})
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <SelectTrigger id="sched_room" className="h-9">
+                                            <SelectValue placeholder="Select Room" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {rooms.map(r => (
+                                                <SelectItem key={r.room_number} value={r.room_number}>
+                                                    {r.room_number} ({r.room_type}, Cap: {r.capacity})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
                                 {/* Slot Picker Trigger */}
@@ -516,31 +523,33 @@ export default function ScheduleView() {
                         />
                     </div>
 
-                    <select
-                        className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-slate-700"
-                        value={filterDay}
-                        onChange={(e) => setFilterDay(e.target.value)}
-                    >
-                        <option value="">All Days</option>
-                        <option value="1">Day 1 (Monday)</option>
-                        <option value="2">Day 2 (Tuesday)</option>
-                        <option value="3">Day 3 (Wednesday)</option>
-                        <option value="4">Day 4 (Thursday)</option>
-                        <option value="5">Day 5 (Friday)</option>
-                    </select>
+                    <Select value={filterDay} onValueChange={(val) => setFilterDay(val)}>
+                        <SelectTrigger className="h-9">
+                            <SelectValue placeholder="All Days" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="">All Days</SelectItem>
+                            <SelectItem value="1">Day 1 (Monday)</SelectItem>
+                            <SelectItem value="2">Day 2 (Tuesday)</SelectItem>
+                            <SelectItem value="3">Day 3 (Wednesday)</SelectItem>
+                            <SelectItem value="4">Day 4 (Thursday)</SelectItem>
+                            <SelectItem value="5">Day 5 (Friday)</SelectItem>
+                        </SelectContent>
+                    </Select>
 
-                    <select
-                        className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500 text-slate-700"
-                        value={filterFaculty}
-                        onChange={(e) => setFilterFaculty(e.target.value)}
-                    >
-                        <option value="">All Faculty</option>
-                        {facultyList.map(f => (
-                            <option key={f.faculty_id} value={f.faculty_id.toString()}>
-                                {f.faculty_name} ({f.designation || 'Faculty'})
-                            </option>
-                        ))}
-                    </select>
+                    <Select value={filterFaculty} onValueChange={(val) => setFilterFaculty(val)}>
+                        <SelectTrigger className="h-9">
+                            <SelectValue placeholder="All Faculty" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="">All Faculty</SelectItem>
+                            {facultyList.map(f => (
+                                <SelectItem key={f.faculty_id} value={f.faculty_id.toString()}>
+                                    {f.faculty_name} ({f.designation || 'Faculty'})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
                     <div className="flex items-center bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-lg">
                         <label className="flex items-center cursor-pointer w-full justify-between">
@@ -756,61 +765,79 @@ export default function ScheduleView() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="edit_course" className="mb-1.5 block">Course</Label>
-                                <select
-                                    id="edit_course"
-                                    required
+                                <Select
                                     value={editForm.course_id}
-                                    onChange={(e) => setEditForm({ ...editForm, course_id: e.target.value })}
-                                    className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500"
+                                    onValueChange={(val) => setEditForm({ ...editForm, course_id: val })}
                                 >
-                                    <option value="">Select Course</option>
-                                    {courses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_code} — {c.course_name}</option>)}
-                                </select>
+                                    <SelectTrigger id="edit_course" className="h-9">
+                                        <SelectValue placeholder="Select Course" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {courses.map(c => (
+                                            <SelectItem key={c.course_id} value={c.course_id.toString()}>
+                                                {c.course_code} — {c.course_name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div>
                                 <Label htmlFor="edit_batch" className="mb-1.5 block">Batch</Label>
-                                <select
-                                    id="edit_batch"
-                                    required
+                                <Select
                                     value={editForm.batch_id}
-                                    onChange={(e) => setEditForm({ ...editForm, batch_id: e.target.value })}
-                                    className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500"
+                                    onValueChange={(val) => setEditForm({ ...editForm, batch_id: val })}
                                 >
-                                    <option value="">Select Batch</option>
-                                    {batches.map(b => <option key={b.batch_id} value={b.batch_id}>Year {b.year_of_study} - {b.section} ({b.student_count} students)</option>)}
-                                </select>
+                                    <SelectTrigger id="edit_batch" className="h-9">
+                                        <SelectValue placeholder="Select Batch" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {batches.map(b => (
+                                            <SelectItem key={b.batch_id} value={b.batch_id.toString()}>
+                                                Year {b.year_of_study} - {b.section} ({b.student_count} students)
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div>
                                 <Label htmlFor="edit_faculty" className="mb-1.5 block">Faculty / Instructor</Label>
-                                <select
-                                    id="edit_faculty"
+                                <Select
                                     value={editForm.faculty_id}
-                                    onChange={(e) => setEditForm({ ...editForm, faculty_id: e.target.value })}
-                                    className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500"
+                                    onValueChange={(val) => setEditForm({ ...editForm, faculty_id: val })}
                                 >
-                                    <option value="">Unassigned</option>
-                                    {facultyList.map(f => (
-                                        <option key={f.faculty_id} value={f.faculty_id}>
-                                            {f.faculty_name} ({f.designation || 'Faculty'})
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="edit_faculty" className="h-9">
+                                        <SelectValue placeholder="Unassigned" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">Unassigned</SelectItem>
+                                        {facultyList.map(f => (
+                                            <SelectItem key={f.faculty_id} value={f.faculty_id.toString()}>
+                                                {f.faculty_name} ({f.designation || 'Faculty'})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div>
                                 <Label htmlFor="edit_room" className="mb-1.5 block">Room</Label>
-                                <select
-                                    id="edit_room"
-                                    required
+                                <Select
                                     value={editForm.room_number}
-                                    onChange={(e) => setEditForm({ ...editForm, room_number: e.target.value })}
-                                    className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500"
+                                    onValueChange={(val) => setEditForm({ ...editForm, room_number: val })}
                                 >
-                                    <option value="">Select Room</option>
-                                    {rooms.map(r => <option key={r.room_number} value={r.room_number}>{r.room_number} ({r.room_type}, Cap: {r.capacity})</option>)}
-                                </select>
+                                    <SelectTrigger id="edit_room" className="h-9">
+                                        <SelectValue placeholder="Select Room" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {rooms.map(r => (
+                                            <SelectItem key={r.room_number} value={r.room_number}>
+                                                {r.room_number} ({r.room_type}, Cap: {r.capacity})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="relative md:col-span-2">

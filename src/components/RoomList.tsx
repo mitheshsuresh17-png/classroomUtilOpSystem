@@ -40,6 +40,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from './ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 
 interface Room {
   room_number: string;
@@ -220,17 +221,19 @@ export default function RoomList() {
 
               <div>
                 <Label htmlFor="room-type">Room Type</Label>
-                <select
-                  id="room-type"
-                  required
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                <Select
                   value={form.room_type}
-                  onChange={(e) => setForm({ ...form, room_type: e.target.value })}
+                  onValueChange={(val) => setForm({ ...form, room_type: val })}
                 >
-                  <option value="Classroom">Classroom</option>
-                  <option value="Lab">Lab</option>
-                  <option value="Lecture Hall">Lecture Hall</option>
-                </select>
+                  <SelectTrigger id="room-type">
+                    <SelectValue placeholder="Select Room Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Classroom">Classroom</SelectItem>
+                    <SelectItem value="Lab">Lab</SelectItem>
+                    <SelectItem value="Lecture Hall">Lecture Hall</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -282,16 +285,17 @@ export default function RoomList() {
             </div>
 
             {/* Type */}
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">All Venue Types</option>
-              <option value="Classroom">Classroom</option>
-              <option value="Lab">Lab</option>
-              <option value="Lecture Hall">Lecture Hall</option>
-            </select>
+            <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val)}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Venue Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Venue Types</SelectItem>
+                <SelectItem value="Classroom">Classroom</SelectItem>
+                <SelectItem value="Lab">Lab</SelectItem>
+                <SelectItem value="Lecture Hall">Lecture Hall</SelectItem>
+              </SelectContent>
+            </Select>
 
             {/* Min/Max Capacity */}
             <div className="flex rounded-md border border-input overflow-hidden bg-background">
@@ -531,17 +535,19 @@ export default function RoomList() {
 
               <div>
                 <Label htmlFor="edit-room-type">Room Type</Label>
-                <select
-                  id="edit-room-type"
-                  required
+                <Select
                   value={editForm.room_type}
-                  onChange={(e) => setEditForm({ ...editForm, room_type: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  onValueChange={(val) => setEditForm({ ...editForm, room_type: val })}
                 >
-                  <option value="Classroom">Classroom</option>
-                  <option value="Lab">Lab</option>
-                  <option value="Lecture Hall">Lecture Hall</option>
-                </select>
+                  <SelectTrigger id="edit-room-type">
+                    <SelectValue placeholder="Select Room Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Classroom">Classroom</SelectItem>
+                    <SelectItem value="Lab">Lab</SelectItem>
+                    <SelectItem value="Lecture Hall">Lecture Hall</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

@@ -36,6 +36,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from './ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 
 interface Batch {
   batch_id: string;
@@ -245,18 +246,20 @@ export default function BatchList() {
 
               <div>
                 <Label htmlFor="year-study">Year of Study</Label>
-                <select
-                  id="year-study"
-                  required
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                <Select
                   value={form.year_of_study}
-                  onChange={(e) => setForm({ ...form, year_of_study: e.target.value })}
+                  onValueChange={(val) => setForm({ ...form, year_of_study: val })}
                 >
-                  <option value="1">Year 1</option>
-                  <option value="2">Year 2</option>
-                  <option value="3">Year 3</option>
-                  <option value="4">Year 4</option>
-                </select>
+                  <SelectTrigger id="year-study">
+                    <SelectValue placeholder="Select Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Year 1</SelectItem>
+                    <SelectItem value="2">Year 2</SelectItem>
+                    <SelectItem value="3">Year 3</SelectItem>
+                    <SelectItem value="4">Year 4</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -287,19 +290,21 @@ export default function BatchList() {
 
               <div>
                 <Label htmlFor="dept-select">Department</Label>
-                <select
-                  id="dept-select"
-                  required
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                <Select
                   value={form.dept_id}
-                  onChange={(e) => setForm({ ...form, dept_id: e.target.value })}
+                  onValueChange={(val) => setForm({ ...form, dept_id: val })}
                 >
-                  {departments.map((d) => (
-                    <option key={d.dept_id} value={d.dept_id.toString()}>
-                      {d.dept_name} (ID: {d.dept_id})
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="dept-select">
+                    <SelectValue placeholder="Select Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.dept_id} value={d.dept_id.toString()}>
+                        {d.dept_name} (ID: {d.dept_id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="md:col-span-5 flex justify-end gap-2 pt-2">
@@ -458,37 +463,41 @@ export default function BatchList() {
                 </div>
                 <div>
                   <Label htmlFor="edit-dept-id">Department</Label>
-                  <select
-                    id="edit-dept-id"
-                    required
+                  <Select
                     value={editForm.dept_id}
-                    onChange={(e) => setEditForm({ ...editForm, dept_id: e.target.value })}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    onValueChange={(val) => setEditForm({ ...editForm, dept_id: val })}
                   >
-                    {departments.map((d) => (
-                      <option key={d.dept_id} value={d.dept_id.toString()}>
-                        {d.dept_name} (ID: {d.dept_id})
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="edit-dept-id">
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.dept_id} value={d.dept_id.toString()}>
+                          {d.dept_name} (ID: {d.dept_id})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label htmlFor="edit-year">Year of Study</Label>
-                  <select
-                    id="edit-year"
-                    required
+                  <Select
                     value={editForm.year_of_study}
-                    onChange={(e) => setEditForm({ ...editForm, year_of_study: e.target.value })}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    onValueChange={(val) => setEditForm({ ...editForm, year_of_study: val })}
                   >
-                    <option value="1">Year 1</option>
-                    <option value="2">Year 2</option>
-                    <option value="3">Year 3</option>
-                    <option value="4">Year 4</option>
-                  </select>
+                    <SelectTrigger id="edit-year">
+                      <SelectValue placeholder="Select Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Year 1</SelectItem>
+                      <SelectItem value="2">Year 2</SelectItem>
+                      <SelectItem value="3">Year 3</SelectItem>
+                      <SelectItem value="4">Year 4</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="edit-section">Section</Label>

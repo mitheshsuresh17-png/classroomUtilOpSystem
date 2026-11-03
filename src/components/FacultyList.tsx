@@ -19,6 +19,7 @@ import { Label } from './ui/label';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Alert, AlertDescription } from './ui/alert';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 
 export default function FacultyList() {
   const { user } = useAuth();
@@ -282,30 +283,36 @@ export default function FacultyList() {
             <Filter className="w-3.5 h-3.5" />
             Filters:
           </div>
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="h-9 px-3 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          >
-            <option value="all">All Departments</option>
-            {departments.map((d) => (
-              <option key={d.dept_id} value={d.dept_id.toString()}>
-                {d.dept_name}
-              </option>
-            ))}
-          </select>
+          <div className="min-w-[170px]">
+            <Select value={selectedDept} onValueChange={(val) => setSelectedDept(val)}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map((d) => (
+                  <SelectItem key={d.dept_id} value={d.dept_id.toString()}>
+                    {d.dept_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <select
-            value={selectedDesignation}
-            onChange={(e) => setSelectedDesignation(e.target.value)}
-            className="h-9 px-3 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          >
-            <option value="all">All Designations</option>
-            <option value="Professor">Professor</option>
-            <option value="Associate Professor">Associate Professor</option>
-            <option value="Assistant Professor">Assistant Professor</option>
-            <option value="Adjunct Lecturer">Adjunct Lecturer</option>
-          </select>
+          <div className="min-w-[160px]">
+            <Select value={selectedDesignation} onValueChange={(val) => setSelectedDesignation(val)}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="All Designations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Designations</SelectItem>
+                <SelectItem value="Professor">Professor</SelectItem>
+                <SelectItem value="Associate Professor">Associate Professor</SelectItem>
+                <SelectItem value="Assistant Professor">Assistant Professor</SelectItem>
+                <SelectItem value="Adjunct Lecturer">Adjunct Lecturer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </Card>
 
@@ -513,35 +520,39 @@ export default function FacultyList() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="fac_dept" className="mb-1.5 block">Department</Label>
-                <select
-                  id="fac_dept"
-                  required
-                  value={formData.dept_id}
-                  onChange={(e) => setFormData({ ...formData, dept_id: e.target.value })}
-                  className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500"
+                <Select
+                  value={formData.dept_id?.toString()}
+                  onValueChange={(val) => setFormData({ ...formData, dept_id: val })}
                 >
-                  {departments.map((d) => (
-                    <option key={d.dept_id} value={d.dept_id}>
-                      {d.dept_name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="fac_dept" className="h-9">
+                    <SelectValue placeholder="Select Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.dept_id} value={d.dept_id.toString()}>
+                        {d.dept_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <Label htmlFor="fac_desig" className="mb-1.5 block">Designation</Label>
-                <select
-                  id="fac_desig"
-                  required
+                <Select
                   value={formData.designation}
-                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                  className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500"
+                  onValueChange={(val) => setFormData({ ...formData, designation: val })}
                 >
-                  <option value="Professor">Professor</option>
-                  <option value="Associate Professor">Associate Professor</option>
-                  <option value="Assistant Professor">Assistant Professor</option>
-                  <option value="Adjunct Lecturer">Adjunct Lecturer</option>
-                </select>
+                  <SelectTrigger id="fac_desig" className="h-9">
+                    <SelectValue placeholder="Select Designation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Professor">Professor</SelectItem>
+                    <SelectItem value="Associate Professor">Associate Professor</SelectItem>
+                    <SelectItem value="Assistant Professor">Assistant Professor</SelectItem>
+                    <SelectItem value="Adjunct Lecturer">Adjunct Lecturer</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

@@ -10,6 +10,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Alert, AlertDescription } from './ui/alert';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 
 export const CourseList: React.FC = () => {
   const { user } = useAuth();
@@ -156,20 +157,21 @@ export const CourseList: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-[200px]">
             <Filter className="w-4 h-4 text-slate-400 shrink-0" />
-            <select
-              value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
-              className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-            >
-              <option value="ALL">All Departments</option>
-              {departments.map((d) => (
-                <option key={d.dept_id} value={d.dept_id.toString()}>
-                  {d.dept_name}
-                </option>
-              ))}
-            </select>
+            <Select value={deptFilter} onValueChange={(val) => setDeptFilter(val)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Departments</SelectItem>
+                {departments.map((d) => (
+                  <SelectItem key={d.dept_id} value={d.dept_id.toString()}>
+                    {d.dept_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </Card>
@@ -305,18 +307,18 @@ export const CourseList: React.FC = () => {
 
             <div>
               <Label htmlFor="dept_id" className="mb-1.5 block">Academic Department</Label>
-              <select
-                id="dept_id"
-                value={newDeptId}
-                onChange={(e) => setNewDeptId(e.target.value)}
-                className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500"
-              >
-                {departments.map((d) => (
-                  <option key={d.dept_id} value={d.dept_id.toString()}>
-                    {d.dept_name} (ID: {d.dept_id})
-                  </option>
-                ))}
-              </select>
+              <Select value={newDeptId} onValueChange={(val) => setNewDeptId(val)}>
+                <SelectTrigger id="dept_id" className="h-9">
+                  <SelectValue placeholder="Select Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((d) => (
+                    <SelectItem key={d.dept_id} value={d.dept_id.toString()}>
+                      {d.dept_name} (ID: {d.dept_id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <DialogFooter>
