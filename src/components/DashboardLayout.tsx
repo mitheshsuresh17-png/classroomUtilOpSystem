@@ -9,16 +9,18 @@ import ScheduleView from './ScheduleView';
 import AnalyticsView from './AnalyticsView';
 import { CourseList } from './CourseList';
 import { DepartmentList } from './DepartmentList';
+import FacultyList from './FacultyList';
 import {
   LayoutDashboard, Calendar, Building2,
   LogOut, Users, ChevronDown, Menu, X,
   ShieldCheck, UserPlus, Eye, CheckCircle2, AlertCircle, RefreshCw,
-  BookOpen, Building, BarChart3
+  BookOpen, Building, BarChart3, GraduationCap
 } from 'lucide-react';
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'schedules', label: 'Schedules', icon: Calendar },
+  { id: 'faculty', label: 'Faculty', icon: GraduationCap },
   { id: 'rooms', label: 'Rooms', icon: Building2 },
   { id: 'batches', label: 'Batches', icon: Users },
   { id: 'courses', label: 'Courses', icon: BookOpen },
@@ -451,6 +453,7 @@ export default function DashboardLayout() {
 
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'schedules' && <ScheduleView />}
+        {activeTab === 'faculty' && <FacultyList />}
         {activeTab === 'rooms' && <RoomList />}
         {activeTab === 'batches' && <BatchList />}
         {activeTab === 'courses' && <CourseList />}

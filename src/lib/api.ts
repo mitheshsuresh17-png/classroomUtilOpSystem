@@ -89,6 +89,7 @@ export interface DepartmentImpact {
     dept_id: number;
     courses_count: number;
     batches_count: number;
+    faculty_count?: number;
     schedules_count: number;
 }
 
@@ -237,7 +238,17 @@ export const fetchBatches = async () => {
     return res.json();
 };
 
-export const fetchTimeSlots = async () => {
+export interface TimeSlot {
+    slot_id: number | string;
+    day_of_week: string;
+    start_time: string;
+    end_time: string;
+    hour_order: number;
+    slot_name: string;
+    slot_type: 'Theory' | 'Lab';
+}
+
+export const fetchTimeSlots = async (): Promise<TimeSlot[]> => {
     const res = await authFetch('/timeslots');
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -246,11 +257,21 @@ export const fetchTimeSlots = async () => {
     return res.json();
 };
 
-interface SchedulePayload {
-    course_id: string;
-    batch_id: string;
+export interface SchedulePayload {
+    course_id: string | number;
+    batch_id: string | number;
     room_number: string;
-    slot_id: string;
+    slot_id?: string | number;
+    slot_ids?: number[];
+    faculty_id?: string | number | null;
+}
+
+export interface ClubbedSchedulePayload {
+    course_id: string | number;
+    batch_id: string | number;
+    room_number: string;
+    slot_name: string;
+    faculty_id?: string | number | null;
 }
 
 export const scheduleRoom = async (scheduleData: SchedulePayload) => {
@@ -262,6 +283,16 @@ export const scheduleRoom = async (scheduleData: SchedulePayload) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to schedule room');
     return data;
+};
+
+export const scheduleClubbed = async (data: ClubbedSchedulePayload) => {
+    const res = await authFetch('/schedules/clubbed', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to schedule clubbed slot group');
+    return result;
 };
 
 export const deleteSchedule = async (scheduleId: string) => {
@@ -458,6 +489,97 @@ export const fetchActionableSignals = async () => {
 export const fetchEfficiencyScore = async () => {
     const res = await authFetch('/advanced-analytics/efficiency-score');
     if (!res.ok) throw new Error('Failed to fetch system efficiency score');
+    return res.json();
+};
+
+// ==========================================
+// Faculty Management
+// ==========================================
+
+export interface Faculty {
+    faculty_id: number;
+    faculty_name: string;
+    email: string;
+    dept_id: number;
+    dept_name?: string;
+    designation: 'Professor' | 'Associate Professor' | 'Assistant Professor' | 'Adjunct Lecturer';
+    max_weekly_slots: number;
+    assigned_slots?: number;
+    remaining_slots?: number;
+    utilization_percent?: string | number;
+}
+
+export interface FacultyImpact {
+    faculty_id: number;
+    schedules_count: number;
+}
+
+export const fetchFaculty = async (): Promise<Faculty[]> => {
+    const res = await authFetch('/faculty');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch faculty list');
+    }
+    return res.json();
+};
+
+export const createFaculty = async (data: {
+    faculty_id: number;
+    faculty_name: string;
+    email: string;
+    dept_id: number;
+    designation: string;
+    max_weekly_slots?: number;
+}) => {
+    const res = await authFetch('/faculty', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to create faculty member');
+    return result;
+};
+
+export const updateFaculty = async (facultyId: number, data: {
+    faculty_name: string;
+    email: string;
+    dept_id: number;
+    designation: string;
+    max_weekly_slots?: number;
+}) => {
+    const res = await authFetch(`/faculty/${facultyId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to update faculty member');
+    return result;
+};
+
+export const deleteFaculty = async (facultyId: number) => {
+    const res = await authFetch(`/faculty/${facultyId}`, {
+        method: 'DELETE'
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to delete faculty member');
+    return result;
+};
+
+export const fetchFacultyImpact = async (facultyId: number): Promise<FacultyImpact> => {
+    const res = await authFetch(`/faculty/${facultyId}/impact`);
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch faculty impact');
+    }
+    return res.json();
+};
+
+export const fetchFacultyTimetable = async (facultyId: number) => {
+    const res = await authFetch(`/faculty/${facultyId}/timetable`);
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch faculty timetable');
+    }
     return res.json();
 };
 

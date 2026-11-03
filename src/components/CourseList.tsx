@@ -46,10 +46,23 @@ export const CourseList: React.FC = () => {
     loadData();
   }, []);
 
+  const getCourseType = (code: string) => {
+    const suffix = code.slice(-1).toUpperCase();
+    if (suffix === 'T') return { label: 'Theory Only', color: 'bg-amber-500/10 text-amber-300 border-amber-500/20' };
+    if (suffix === 'P') return { label: 'Practical Only', color: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' };
+    if (suffix === 'J') return { label: 'Joint (Theory + Lab)', color: 'bg-purple-500/10 text-purple-300 border-purple-500/20' };
+    return { label: 'Course', color: 'bg-slate-500/10 text-slate-300 border-slate-500/20' };
+  };
+
   const handleAddCourse = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCourseId || !newCourseCode.trim() || !newCourseName.trim() || !newDeptId) {
+    const code = newCourseCode.trim().toUpperCase();
+    if (!newCourseId || !code || !newCourseName.trim() || !newDeptId) {
       setFormError('All fields (Course ID, Code, Name, and Department) are required.');
+      return;
+    }
+    if (!/^[A-Z0-9]{8}[TPJ]$/.test(code)) {
+      setFormError('Course code must be exactly 9 alphanumeric characters ending in T (Theory), P (Practical), or J (Joint) (e.g. 18CSC301T).');
       return;
     }
     try {
@@ -57,7 +70,7 @@ export const CourseList: React.FC = () => {
       setFormError(null);
       await createCourse({
         course_id: parseInt(newCourseId, 10),
-        course_code: newCourseCode.trim().toUpperCase(),
+        course_code: code,
         course_name: newCourseName.trim(),
         dept_id: parseInt(newDeptId, 10),
       });
@@ -162,39 +175,47 @@ export const CourseList: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((course) => (
-            <div
-              key={course.course_id}
-              className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-5 shadow-lg space-y-4 transition-all"
-            >
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <div className="inline-flex items-center px-2.5 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-mono font-semibold">
-                    {course.course_code}
+          {filtered.map((course) => {
+            const typeInfo = getCourseType(course.course_code);
+            return (
+              <div
+                key={course.course_id}
+                className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-5 shadow-lg space-y-4 transition-all"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-mono font-bold tracking-wider">
+                        {course.course_code}
+                      </span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md border text-[11px] font-semibold ${typeInfo.color}`}>
+                        {typeInfo.label}
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-white text-base leading-snug">{course.course_name}</h3>
+                    <p className="text-xs text-slate-400">{course.dept_name || `Dept #${course.dept_id}`}</p>
                   </div>
-                  <h3 className="font-semibold text-white text-base leading-snug">{course.course_name}</h3>
-                  <p className="text-xs text-slate-400">{course.dept_name || `Dept #${course.dept_id}`}</p>
+                  {isCoordinator && (
+                    <button
+                      onClick={() => setDeleteTarget(course)}
+                      title="Delete Course"
+                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-                {isCoordinator && (
-                  <button
-                    onClick={() => setDeleteTarget(course)}
-                    title="Delete Course"
-                    className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs">
-                <span className="text-slate-500">ID: #{course.course_id}</span>
-                <div className="flex items-center space-x-1 text-slate-300">
-                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>{course.scheduled_slots || 0} active slots</span>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs">
+                  <span className="text-slate-500">ID: #{course.course_id}</span>
+                  <div className="flex items-center space-x-1 text-slate-300">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>{course.scheduled_slots || 0} active slots</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -234,17 +255,24 @@ export const CourseList: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Course Code</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-slate-300">Course Code (9 chars)</label>
+                    <span className="text-[10px] text-slate-500 font-mono">{newCourseCode.length}/9</span>
+                  </div>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. CS401"
+                    maxLength={9}
+                    placeholder="e.g. 18CSC301T"
                     value={newCourseCode}
-                    onChange={(e) => setNewCourseCode(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-white text-sm uppercase focus:outline-none focus:border-purple-500"
+                    onChange={(e) => setNewCourseCode(e.target.value.toUpperCase())}
+                    className="w-full px-3.5 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-white text-sm uppercase font-mono tracking-wider focus:outline-none focus:border-purple-500"
                   />
                 </div>
               </div>
+              <p className="text-[11px] text-slate-400 bg-slate-950/40 p-2 rounded-lg border border-slate-800/60">
+                Course code must end with <span className="text-amber-400 font-semibold">T</span> (Theory), <span className="text-emerald-400 font-semibold">P</span> (Practical), or <span className="text-purple-400 font-semibold">J</span> (Joint).
+              </p>
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1.5">Course Title / Name</label>
                 <input

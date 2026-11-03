@@ -90,12 +90,12 @@ async function runTests() {
     assert(batchError && batchError.includes('Capacity Error'), `Batch size increase above scheduled room capacity rejected (${batchError})`);
 
     // Test 1.3: Course_Schedule Update Trigger (trg_check_schedule_update)
-    // Schedule 1 is on slot 1 in UB101.
-    // Schedule 2 is on slot 14 in UB102.
-    // Updating Schedule 2 to slot 1 in UB101 should FAIL due to double booking.
+    // Schedule 1 is on slot 6 in UB101.
+    // Schedule 3 is on slot 14 in UB201 (Course 103, 18CSC301T Theory).
+    // Updating Schedule 3 to slot 6 in UB101 should FAIL due to double booking.
     let scheduleConflictError = null;
     try {
-      await pool.query('UPDATE Course_Schedule SET room_number = "UB101", slot_id = 1 WHERE schedule_id = 2');
+      await pool.query('UPDATE Course_Schedule SET room_number = "UB101", slot_id = 6 WHERE schedule_id = 3');
     } catch (err) {
       scheduleConflictError = err.message;
     }
@@ -183,7 +183,7 @@ async function runTests() {
   const viewerAddCourse = await request('/courses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${viewerToken}` },
-    body: { course_id: 999, course_code: 'ME101', course_name: 'Thermodynamics', dept_id: 1 }
+    body: { course_id: 999, course_code: '18MEC101T', course_name: 'Thermodynamics', dept_id: 1 }
   });
   assert(viewerAddCourse.status === 403, 'Viewer cannot create course (403 Forbidden)');
 
@@ -191,7 +191,7 @@ async function runTests() {
   const coordAddCourse = await request('/courses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${coordToken}` },
-    body: { course_id: 105, course_code: 'CS301', course_name: 'Computer Networks', dept_id: 1 }
+    body: { course_id: 105, course_code: '18CSC105T', course_name: 'Computer Networks', dept_id: 1 }
   });
   assert(coordAddCourse.status === 201 && coordAddCourse.body.success, 'Coordinator can create course (201 Created)');
 

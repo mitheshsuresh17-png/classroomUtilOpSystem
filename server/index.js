@@ -10,7 +10,9 @@ import {
   validateBatch,
   validateDepartment,
   validateCourse,
+  validateFaculty,
   validateSchedule,
+  validateClubbedSchedule,
   validateUserProvision
 } from './validation.js';
 
@@ -172,6 +174,7 @@ app.get('/api/departments/:dept_id/impact', authenticateToken, async (req, res) 
   try {
     const [courseRows] = await db.query('SELECT COUNT(*) as count FROM Course WHERE dept_id = ?', [dept_id]);
     const [batchRows] = await db.query('SELECT COUNT(*) as count FROM Batch WHERE dept_id = ?', [dept_id]);
+    const [facultyRows] = await db.query('SELECT COUNT(*) as count FROM Faculty WHERE dept_id = ?', [dept_id]);
     const [scheduleRows] = await db.query(`
       SELECT COUNT(*) as count FROM Course_Schedule cs
       JOIN Course c ON cs.course_id = c.course_id
@@ -181,6 +184,7 @@ app.get('/api/departments/:dept_id/impact', authenticateToken, async (req, res) 
       dept_id: Number(dept_id),
       courses_count: courseRows[0].count,
       batches_count: batchRows[0].count,
+      faculty_count: facultyRows[0].count,
       schedules_count: scheduleRows[0].count
     });
   } catch (err) {
@@ -264,6 +268,111 @@ app.delete('/api/courses/:course_id', authenticateToken, requireCoordinator, asy
 });
 
 // ==========================================
+// Faculty Management Routes
+// ==========================================
+
+// Get all faculty with workload metrics (Authenticated: Coordinator & Viewer)
+app.get('/api/faculty', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM View_Faculty_Workload ORDER BY dept_id, faculty_name');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add Faculty (Coordinator only)
+app.post('/api/faculty', authenticateToken, requireCoordinator, validateFaculty, async (req, res) => {
+  const { faculty_id, faculty_name, email, dept_id, designation, max_weekly_slots } = req.body;
+  try {
+    const [deptRows] = await db.query('SELECT dept_id FROM Department WHERE dept_id = ?', [dept_id]);
+    if (deptRows.length === 0) {
+      return res.status(400).json({ error: `Selected department (ID: ${dept_id}) does not exist.` });
+    }
+    await db.query(
+      'INSERT INTO Faculty (faculty_id, faculty_name, email, dept_id, designation, max_weekly_slots) VALUES (?, ?, ?, ?, ?, ?)',
+      [Number(faculty_id), faculty_name.trim(), email.trim().toLowerCase(), Number(dept_id), designation, Number(max_weekly_slots || 16)]
+    );
+    res.status(201).json({ success: true, faculty_id: Number(faculty_id) });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: `Faculty with ID #${faculty_id} or email "${email}" already exists.` });
+    }
+    res.status(400).json({ error: err.sqlMessage || err.message });
+  }
+});
+
+// Update Faculty in place (Coordinator only)
+app.put('/api/faculty/:faculty_id', authenticateToken, requireCoordinator, validateFaculty, async (req, res) => {
+  const { faculty_id } = req.params;
+  const { faculty_name, email, dept_id, designation, max_weekly_slots } = req.body;
+  try {
+    const [deptRows] = await db.query('SELECT dept_id FROM Department WHERE dept_id = ?', [dept_id]);
+    if (deptRows.length === 0) {
+      return res.status(400).json({ error: `Selected department (ID: ${dept_id}) does not exist.` });
+    }
+    const [result] = await db.query(
+      'UPDATE Faculty SET faculty_name = ?, email = ?, dept_id = ?, designation = ?, max_weekly_slots = ? WHERE faculty_id = ?',
+      [faculty_name.trim(), email.trim().toLowerCase(), Number(dept_id), designation, Number(max_weekly_slots || 16), Number(faculty_id)]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: `Faculty member #${faculty_id} not found.` });
+    }
+    res.json({ success: true, updated: result.affectedRows });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: `Another faculty member already uses the email "${email}".` });
+    }
+    res.status(400).json({ error: err.sqlMessage || err.message });
+  }
+});
+
+// Impact preview for Faculty deletion
+app.get('/api/faculty/:faculty_id/impact', authenticateToken, async (req, res) => {
+  const { faculty_id } = req.params;
+  try {
+    const [scheduleRows] = await db.query('SELECT COUNT(*) as count FROM Course_Schedule WHERE faculty_id = ?', [faculty_id]);
+    res.json({
+      faculty_id: Number(faculty_id),
+      schedules_count: scheduleRows[0].count
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete Faculty (Coordinator only)
+app.delete('/api/faculty/:faculty_id', authenticateToken, requireCoordinator, async (req, res) => {
+  const { faculty_id } = req.params;
+  try {
+    const [result] = await db.query('DELETE FROM Faculty WHERE faculty_id = ?', [faculty_id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: `Faculty member #${faculty_id} not found.` });
+    }
+    res.json({ success: true, deleted: result.affectedRows });
+  } catch (err) {
+    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(400).json({ error: 'Cannot delete faculty member with active scheduled classes. Reassign or delete their schedules first.' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Specific Timetable for a Faculty member
+app.get('/api/faculty/:faculty_id/timetable', authenticateToken, async (req, res) => {
+  const { faculty_id } = req.params;
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM View_Detailed_Schedule WHERE faculty_id = ? ORDER BY day_of_week, start_time',
+      [faculty_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
 // Entity Impact Routes (Cascade Protection)
 // ==========================================
 
@@ -321,13 +430,28 @@ app.get('/api/timeslots', authenticateToken, async (req, res) => {
 });
 
 // Allocate a Room (Coordinator only - logs created_by)
+// Allocate a Schedule (Coordinator only - supports single slot, lab pair, and faculty assignment)
 app.post('/api/schedules', authenticateToken, requireCoordinator, validateSchedule, async (req, res) => {
-  const { course_id, batch_id, room_number, slot_id } = req.body;
+  const { course_id, batch_id, room_number, slot_id, slot_ids, faculty_id } = req.body;
   const created_by = req.user ? req.user.id : null;
+  const facultyVal = (faculty_id !== undefined && faculty_id !== null && faculty_id !== '') ? Number(faculty_id) : null;
+  
   try {
+    if (Array.isArray(slot_ids) && slot_ids.length > 0) {
+      const insertedIds = [];
+      for (const sid of slot_ids) {
+        const [result] = await db.query(
+          'INSERT INTO Course_Schedule (course_id, batch_id, room_number, slot_id, faculty_id, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+          [Number(course_id), Number(batch_id), room_number.trim(), Number(sid), facultyVal, created_by]
+        );
+        insertedIds.push(result.insertId);
+      }
+      return res.status(201).json({ success: true, schedule_ids: insertedIds });
+    }
+
     const [result] = await db.query(
-      'INSERT INTO Course_Schedule (course_id, batch_id, room_number, slot_id, created_by) VALUES (?, ?, ?, ?, ?)',
-      [course_id, batch_id, room_number, slot_id, created_by]
+      'INSERT INTO Course_Schedule (course_id, batch_id, room_number, slot_id, faculty_id, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+      [Number(course_id), Number(batch_id), room_number.trim(), Number(slot_id), facultyVal, created_by]
     );
     res.status(201).json({ success: true, schedule_id: result.insertId });
   } catch (err) {
@@ -335,17 +459,63 @@ app.post('/api/schedules', authenticateToken, requireCoordinator, validateSchedu
   }
 });
 
+// Allocate Clubbed Theory Slot Group (A-G) atomically across the whole week (Coordinator only)
+app.post('/api/schedules/clubbed', authenticateToken, requireCoordinator, validateClubbedSchedule, async (req, res) => {
+  const { course_id, batch_id, room_number, slot_name, faculty_id } = req.body;
+  const created_by = req.user ? req.user.id : null;
+  const facultyVal = (faculty_id !== undefined && faculty_id !== null && faculty_id !== '') ? Number(faculty_id) : null;
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const [slots] = await connection.query(
+      'SELECT slot_id, day_of_week, hour_order FROM Time_Slot WHERE slot_name = ? AND slot_type = "Theory" ORDER BY slot_id',
+      [slot_name.trim().toUpperCase()]
+    );
+
+    if (slots.length === 0) {
+      await connection.rollback();
+      return res.status(400).json({ error: `No active theory slots found for group "${slot_name}".` });
+    }
+
+    const createdIds = [];
+    for (const slot of slots) {
+      const [result] = await connection.query(
+        'INSERT INTO Course_Schedule (course_id, batch_id, room_number, slot_id, faculty_id, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+        [Number(course_id), Number(batch_id), room_number.trim(), slot.slot_id, facultyVal, created_by]
+      );
+      createdIds.push(result.insertId);
+    }
+
+    await connection.commit();
+    res.status(201).json({
+      success: true,
+      slot_name: slot_name.trim().toUpperCase(),
+      total_slots_scheduled: createdIds.length,
+      schedule_ids: createdIds
+    });
+  } catch (err) {
+    if (connection) await connection.rollback();
+    res.status(400).json({ error: err.sqlMessage || err.message });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 // Update a Schedule in place (Coordinator only)
 app.put('/api/schedules/:schedule_id', authenticateToken, requireCoordinator, validateSchedule, async (req, res) => {
   const { schedule_id } = req.params;
-  const { course_id, batch_id, room_number, slot_id } = req.body;
+  const { course_id, batch_id, room_number, slot_id, faculty_id } = req.body;
   if (!course_id || !batch_id || !room_number || !slot_id) {
     return res.status(400).json({ error: 'Course, Batch, Room, and Time Slot are all required.' });
   }
+  const facultyVal = (faculty_id !== undefined && faculty_id !== null && faculty_id !== '') ? Number(faculty_id) : null;
   try {
     const [result] = await db.query(
-      'UPDATE Course_Schedule SET course_id = ?, batch_id = ?, room_number = ?, slot_id = ? WHERE schedule_id = ?',
-      [Number(course_id), Number(batch_id), room_number, Number(slot_id), Number(schedule_id)]
+      'UPDATE Course_Schedule SET course_id = ?, batch_id = ?, room_number = ?, slot_id = ?, faculty_id = ? WHERE schedule_id = ?',
+      [Number(course_id), Number(batch_id), room_number.trim(), Number(slot_id), facultyVal, Number(schedule_id)]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: `Schedule record #${schedule_id} not found.` });

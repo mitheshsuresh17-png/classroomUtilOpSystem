@@ -2,9 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { 
     fetchSchedules, fetchCourses, fetchBatches, fetchRooms, 
     fetchTimeSlots, scheduleRoom, updateSchedule, fetchEmptySlots,
-    deleteSchedule, fetchUnscheduledCourses
+    deleteSchedule, fetchUnscheduledCourses, fetchFaculty, scheduleClubbed,
+    Faculty, TimeSlot
 } from '../lib/api';
-import { Filter, Search, Plus, Calendar, Trash2, Eye, Pencil, X, AlertCircle, BookOpen, CheckCircle2 } from 'lucide-react';
+import { 
+    Filter, Search, Plus, Calendar, Trash2, Eye, Pencil, X, 
+    AlertCircle, BookOpen, CheckCircle2, GraduationCap, Layers, UserCheck
+} from 'lucide-react';
 import TimeSlotGrid from './TimeSlotGrid';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -24,12 +28,23 @@ interface Schedule {
     created_by_name?: string;
     created_by_email?: string;
     updated_at?: string;
+    faculty_id?: number | string | null;
+    faculty_name?: string | null;
+    designation?: string | null;
+    slot_name?: string | null;
+    slot_type?: 'Theory' | 'Lab' | string | null;
+    hour_order?: number | null;
 }
 
-interface Course { course_id: number | string; course_name: string; course_code: string; }
+interface Course { 
+    course_id: number | string; 
+    course_name: string; 
+    course_code: string; 
+    dept_id?: number;
+    dept_name?: string;
+}
 interface Batch { batch_id: string; year_of_study: number; section: string; student_count: number; }
 interface Room { room_number: string; room_type: string; capacity: number; }
-interface TimeSlot { slot_id: string; day_of_week: string; start_time: string; end_time: string; }
 interface UnscheduledCourse { course_code: string; course_name: string; }
 
 export default function ScheduleView() {
@@ -39,6 +54,7 @@ export default function ScheduleView() {
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [emptySlotsData, setEmptySlotsData] = useState<Schedule[]>([]);
     const [unscheduledCourses, setUnscheduledCourses] = useState<UnscheduledCourse[]>([]);
+    const [facultyList, setFacultyList] = useState<Faculty[]>([]);
     
     const [loading, setLoading] = useState(true);
     const [courses, setCourses] = useState<Course[]>([]);
@@ -48,18 +64,36 @@ export default function ScheduleView() {
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
-    const [form, setForm] = useState({ course_id: '', batch_id: '', room_number: '', slot_id: '' });
+    // Allocation mode: 'single' (1 period) vs 'clubbed' (Theory group A-G across week)
+    const [allocationMode, setAllocationMode] = useState<'single' | 'clubbed'>('single');
+
+    const [form, setForm] = useState({ 
+        course_id: '', 
+        batch_id: '', 
+        room_number: '', 
+        slot_id: '', 
+        slot_name: '',
+        faculty_id: '' 
+    });
     const [showSlotPicker, setShowSlotPicker] = useState(false);
 
     // Edit Schedule Modal State
     const [editTarget, setEditTarget] = useState<Schedule | null>(null);
-    const [editForm, setEditForm] = useState({ course_id: '', batch_id: '', room_number: '', slot_id: '' });
+    const [editForm, setEditForm] = useState({ 
+        course_id: '', 
+        batch_id: '', 
+        room_number: '', 
+        slot_id: '',
+        faculty_id: ''
+    });
     const [editShowSlotPicker, setEditShowSlotPicker] = useState(false);
     const [editError, setEditError] = useState('');
     const [editLoading, setEditLoading] = useState(false);
 
+    // Filters
     const [searchCourse, setSearchCourse] = useState('');
     const [filterDay, setFilterDay] = useState('');
+    const [filterFaculty, setFilterFaculty] = useState('');
     const [showEmptySlots, setShowEmptySlots] = useState(false);
 
     const getBookedSlotIdsForRoom = (roomNumber: string, excludeScheduleId?: string) => {
@@ -83,6 +117,24 @@ export default function ScheduleView() {
         return bookedIds;
     };
 
+    // Find if a teacher is already locked in for this (course_id, batch_id)
+    const existingFacultyForCourseBatch = (() => {
+        if (!form.course_id || !form.batch_id) return null;
+        const match = schedules.find(s => 
+            s.course_id?.toString() === form.course_id.toString() &&
+            s.batch_id?.toString() === form.batch_id.toString() &&
+            s.faculty_id
+        );
+        return match ? { id: match.faculty_id, name: match.faculty_name } : null;
+    })();
+
+    // Auto-lock faculty if already assigned
+    useEffect(() => {
+        if (existingFacultyForCourseBatch && existingFacultyForCourseBatch.id) {
+            setForm(prev => ({ ...prev, faculty_id: existingFacultyForCourseBatch.id!.toString() }));
+        }
+    }, [form.course_id, form.batch_id]);
+
     useEffect(() => {
         loadData();
     }, []);
@@ -90,9 +142,9 @@ export default function ScheduleView() {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [schedData, cData, bData, rData, sData, eData, unData] = await Promise.all([
+            const [schedData, cData, bData, rData, sData, eData, unData, facData] = await Promise.all([
                 fetchSchedules(), fetchCourses(), fetchBatches(), fetchRooms(), fetchTimeSlots(),
-                fetchEmptySlots(), fetchUnscheduledCourses()
+                fetchEmptySlots(), fetchUnscheduledCourses(), fetchFaculty()
             ]);
             setSchedules(schedData);
             setCourses(cData);
@@ -101,6 +153,7 @@ export default function ScheduleView() {
             setSlots(sData);
             setEmptySlotsData(eData);
             setUnscheduledCourses(unData || []);
+            setFacultyList(facData);
         } catch (error) {
             console.error('Error loading schedule data:', error);
         } finally {
@@ -112,10 +165,38 @@ export default function ScheduleView() {
         e.preventDefault();
         setErrorMsg('');
         setSuccessMsg('');
+
         try {
-            await scheduleRoom(form);
-            setSuccessMsg('Schedule created successfully!');
-            setForm({ course_id: '', batch_id: '', room_number: '', slot_id: '' });
+            if (allocationMode === 'clubbed') {
+                if (!form.slot_name) {
+                    setErrorMsg('Please select a Theory Slot Group (A–G)');
+                    return;
+                }
+                const res = await scheduleClubbed({
+                    course_id: form.course_id,
+                    batch_id: form.batch_id,
+                    room_number: form.room_number,
+                    slot_name: form.slot_name,
+                    faculty_id: form.faculty_id ? parseInt(form.faculty_id, 10) : null
+                });
+                setSuccessMsg(`Clubbed slot group '${form.slot_name}' scheduled successfully (${res.scheduled_count} periods)!`);
+            } else {
+                if (!form.slot_id) {
+                    setErrorMsg('Please select a time slot from the grid');
+                    return;
+                }
+                await scheduleRoom({
+                    course_id: form.course_id,
+                    batch_id: form.batch_id,
+                    room_number: form.room_number,
+                    slot_id: form.slot_id,
+                    faculty_id: form.faculty_id ? parseInt(form.faculty_id, 10) : null
+                });
+                setSuccessMsg('Schedule created successfully!');
+            }
+
+            setForm({ course_id: '', batch_id: '', room_number: '', slot_id: '', slot_name: '', faculty_id: '' });
+            setShowSlotPicker(false);
             loadData();
         } catch (err: any) {
             setErrorMsg(err.message || 'An error occurred during scheduling');
@@ -128,7 +209,13 @@ export default function ScheduleView() {
         setEditError('');
         setEditLoading(true);
         try {
-            await updateSchedule(editTarget.schedule_id, editForm);
+            await updateSchedule(editTarget.schedule_id, {
+                course_id: editForm.course_id,
+                batch_id: editForm.batch_id,
+                room_number: editForm.room_number,
+                slot_id: editForm.slot_id,
+                faculty_id: editForm.faculty_id ? parseInt(editForm.faculty_id, 10) : null
+            });
             setEditTarget(null);
             loadData();
         } catch (err: any) {
@@ -154,14 +241,17 @@ export default function ScheduleView() {
             (s.course_name || '').toLowerCase().includes(searchCourse.toLowerCase()) || 
             (s.dept_name || '').toLowerCase().includes(searchCourse.toLowerCase());
         const matchesDay = filterDay ? s.day_of_week === filterDay : true;
-        return matchesCourse && matchesDay;
+        const matchesFaculty = filterFaculty 
+            ? (s.faculty_id ? s.faculty_id.toString() === filterFaculty : false)
+            : true;
+        return matchesCourse && matchesDay && matchesFaculty;
     });
 
     if (loading) return (
         <div className="flex items-center justify-center h-64">
             <div className="flex items-center gap-3">
                 <div className="w-8 h-8 border-[3px] border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-                <span className="text-gray-500 font-medium">Loading schedules...</span>
+                <span className="text-gray-500 font-medium">Loading schedules & faculty...</span>
             </div>
         </div>
     );
@@ -171,11 +261,49 @@ export default function ScheduleView() {
             {/* Add New Schedule (Coordinator only) */}
             {isCoordinator ? (
                 <div className="card p-5 animate-fade-up relative z-50">
-                    <div className="flex items-center gap-2 mb-5">
-                        <div className="p-2 bg-blue-50 rounded-lg">
-                            <Plus className="w-4 h-4 text-blue-600" />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                        <div className="flex items-center gap-2">
+                            <div className="p-2 bg-blue-50 rounded-lg">
+                                <Plus className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-800">Add New Schedule Allocation</h2>
+                                <p className="text-xs text-gray-500">Allocate room, faculty, and periods with automated conflict validation</p>
+                            </div>
                         </div>
-                        <h2 className="text-lg font-bold text-gray-800">Add New Schedule</h2>
+
+                        {/* Mode Switcher */}
+                        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl text-xs font-semibold">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setAllocationMode('single');
+                                    setForm(prev => ({ ...prev, slot_name: '' }));
+                                }}
+                                className={`px-3 py-1.5 rounded-lg transition-all ${
+                                    allocationMode === 'single'
+                                        ? 'bg-white text-blue-700 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-900'
+                                }`}
+                            >
+                                Single Period / Lab
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setAllocationMode('clubbed');
+                                    setForm(prev => ({ ...prev, slot_id: '' }));
+                                }}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all ${
+                                    allocationMode === 'clubbed'
+                                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-900'
+                                }`}
+                            >
+                                <Layers className="w-3.5 h-3.5" />
+                                Clubbed Theory Group (A–G)
+                            </button>
+                        </div>
                     </div>
 
                     {errorMsg && (
@@ -189,63 +317,152 @@ export default function ScheduleView() {
                         </div>
                     )}
                     
-                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Course</label>
-                            <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={form.course_id} onChange={(e) => setForm({...form, course_id: e.target.value})}>
-                                <option value="">Select Course</option>
-                                {courses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_name}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Batch</label>
-                            <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={form.batch_id} onChange={(e) => setForm({...form, batch_id: e.target.value})}>
-                                <option value="">Select Batch</option>
-                                {batches.map(b => <option key={b.batch_id} value={b.batch_id}>Year {b.year_of_study} - {b.section}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Room</label>
-                            <select required className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={form.room_number} onChange={(e) => setForm({...form, room_number: e.target.value})}>
-                                <option value="">Select Room</option>
-                                {rooms.map(r => <option key={r.room_number} value={r.room_number}>{r.room_number} (Cap: {r.capacity})</option>)}
-                            </select>
-                        </div>
-                        <div className="relative">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Time Slot</label>
-                            <button 
-                                type="button" 
-                                onClick={() => setShowSlotPicker(!showSlotPicker)}
-                                className="w-full text-left border border-gray-200 bg-white rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                            >
-                                {form.slot_id ? (() => {
-                                    const s = slots.find(slot => slot.slot_id.toString() === form.slot_id);
-                                    return s ? `Day ${s.day_of_week} (${s.start_time.substring(0,5)})` : 'Select Slot';
-                                })() : 'Select Slot'}
-                            </button>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                            {/* Course */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Course</label>
+                                <select 
+                                    required 
+                                    className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" 
+                                    value={form.course_id} 
+                                    onChange={(e) => setForm({...form, course_id: e.target.value})}
+                                >
+                                    <option value="">Select Course</option>
+                                    {courses.map(c => (
+                                        <option key={c.course_id} value={c.course_id}>
+                                            {c.course_code} — {c.course_name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
 
-                            {showSlotPicker && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setShowSlotPicker(false)}></div>
-                                    <div className="absolute z-50 top-full lg:-right-32 mt-2 w-max max-w-[90vw] shadow-2xl rounded-xl animate-fade-up">
-                                        <TimeSlotGrid 
-                                            mode="select" 
-                                            slots={slots} 
-                                            bookedSlotIds={getBookedSlotIdsForRoom(form.room_number)} 
-                                            selectedSlotId={form.slot_id}
-                                            onSelectSlot={(slotId) => {
-                                                setForm({...form, slot_id: slotId});
-                                                setShowSlotPicker(false);
-                                            }}
-                                        />
-                                    </div>
-                                </>
-                            )}
+                            {/* Batch */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Batch</label>
+                                <select 
+                                    required 
+                                    className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" 
+                                    value={form.batch_id} 
+                                    onChange={(e) => setForm({...form, batch_id: e.target.value})}
+                                >
+                                    <option value="">Select Batch</option>
+                                    {batches.map(b => (
+                                        <option key={b.batch_id} value={b.batch_id}>
+                                            Year {b.year_of_study} - {b.section} ({b.student_count} students)
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Faculty */}
+                            <div>
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase">Faculty</label>
+                                    {existingFacultyForCourseBatch && (
+                                        <span className="text-[10px] text-purple-600 font-bold">Locked</span>
+                                    )}
+                                </div>
+                                <select 
+                                    className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white" 
+                                    value={form.faculty_id} 
+                                    disabled={!!existingFacultyForCourseBatch}
+                                    onChange={(e) => setForm({...form, faculty_id: e.target.value})}
+                                >
+                                    <option value="">No Faculty / Unassigned</option>
+                                    {facultyList.map(f => (
+                                        <option key={f.faculty_id} value={f.faculty_id}>
+                                            {f.faculty_name} ({f.designation || 'Faculty'})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Room */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Room</label>
+                                <select 
+                                    required 
+                                    className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" 
+                                    value={form.room_number} 
+                                    onChange={(e) => setForm({...form, room_number: e.target.value})}
+                                >
+                                    <option value="">Select Room</option>
+                                    {rooms.map(r => (
+                                        <option key={r.room_number} value={r.room_number}>
+                                            {r.room_number} ({r.room_type}, Cap: {r.capacity})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Slot Picker Dropdown */}
+                            <div className="relative">
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">
+                                    {allocationMode === 'clubbed' ? 'Theory Group' : 'Time Slot'}
+                                </label>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowSlotPicker(!showSlotPicker)}
+                                    className="w-full text-left border border-gray-200 bg-white rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 truncate font-medium"
+                                >
+                                    {allocationMode === 'clubbed' ? (
+                                        form.slot_name ? (
+                                            <span className="text-amber-700 font-bold">Group {form.slot_name} (All periods)</span>
+                                        ) : (
+                                            <span className="text-gray-400">Pick Group (A–G)</span>
+                                        )
+                                    ) : (
+                                        form.slot_id ? (() => {
+                                            const s = slots.find(slot => slot.slot_id.toString() === form.slot_id);
+                                            return s ? `D${s.day_of_week} ${s.slot_name} (${s.start_time.substring(0,5)})` : 'Select Slot';
+                                        })() : <span className="text-gray-400">Select Slot</span>
+                                    )}
+                                </button>
+
+                                {showSlotPicker && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowSlotPicker(false)} />
+                                        <div className="absolute z-50 top-full lg:-right-32 mt-2 w-max max-w-[92vw] shadow-2xl rounded-2xl animate-fade-up">
+                                            <TimeSlotGrid 
+                                                mode="select" 
+                                                selectionMode={allocationMode}
+                                                slots={slots} 
+                                                bookedSlotIds={getBookedSlotIdsForRoom(form.room_number)} 
+                                                selectedSlotId={form.slot_id}
+                                                selectedSlotName={form.slot_name}
+                                                onSelectSlot={(slotId) => {
+                                                    setForm({...form, slot_id: slotId});
+                                                    setShowSlotPicker(false);
+                                                }}
+                                                onSelectSlotGroup={(slotName) => {
+                                                    setForm({...form, slot_name: slotName});
+                                                    setShowSlotPicker(false);
+                                                }}
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
-                        <div className="md:col-span-4 mt-1">
-                            <button type="submit" className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all">
+
+                        {/* Helper tip for whole semester invariance */}
+                        {existingFacultyForCourseBatch && (
+                            <div className="p-2.5 bg-purple-50 border border-purple-100 rounded-xl text-xs text-purple-800 flex items-center gap-2">
+                                <UserCheck className="w-4 h-4 text-purple-600 shrink-0" />
+                                <span>
+                                    <strong>Semester Invariance Active:</strong> {existingFacultyForCourseBatch.name} is already assigned to this Course & Batch and will handle all scheduled slots.
+                                </span>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end">
+                            <button 
+                                type="submit" 
+                                className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg transition-all"
+                            >
                                 <Plus className="w-4 h-4" />
-                                Create Allocation
+                                {allocationMode === 'clubbed' ? 'Book Entire Slot Group' : 'Create Allocation'}
                             </button>
                         </div>
                     </form>
@@ -279,6 +496,7 @@ export default function ScheduleView() {
                             onChange={(e) => setSearchCourse(e.target.value)}
                         />
                     </div>
+
                     <select
                         className="border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                         value={filterDay}
@@ -292,23 +510,36 @@ export default function ScheduleView() {
                         <option value="5">Day 5 (Friday)</option>
                     </select>
 
-                    <div className="lg:col-span-2 flex items-center bg-blue-50/80 border border-blue-100 px-4 py-2.5 rounded-xl">
+                    <select
+                        className="border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        value={filterFaculty}
+                        onChange={(e) => setFilterFaculty(e.target.value)}
+                    >
+                        <option value="">All Faculty</option>
+                        {facultyList.map(f => (
+                            <option key={f.faculty_id} value={f.faculty_id.toString()}>
+                                {f.faculty_name} ({f.designation || 'Faculty'})
+                            </option>
+                        ))}
+                    </select>
+
+                    <div className="flex items-center bg-blue-50/80 border border-blue-100 px-4 py-2 rounded-xl">
                         <label className="flex items-center cursor-pointer w-full justify-between">
                             <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-blue-900">Include Empty Time Slots</span>
-                                <span className="text-xs text-blue-500">Uses RIGHT JOIN to inject NULL schedule rows</span>
+                                <span className="text-xs font-semibold text-blue-900">Include Empty Slots</span>
+                                <span className="text-[10px] text-blue-500">Unbooked periods</span>
                             </div>
-                            <div className="relative ml-3">
+                            <div className="relative ml-2">
                                 <input type="checkbox" className="sr-only" checked={showEmptySlots} onChange={(e) => setShowEmptySlots(e.target.checked)} />
-                                <div className={`block w-11 h-6 rounded-full transition-colors ${showEmptySlots ? 'bg-blue-600' : 'bg-gray-300'}`} />
-                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${showEmptySlots ? 'translate-x-5' : ''}`} />
+                                <div className={`block w-10 h-5 rounded-full transition-colors ${showEmptySlots ? 'bg-blue-600' : 'bg-gray-300'}`} />
+                                <div className={`dot absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${showEmptySlots ? 'translate-x-5' : ''}`} />
                             </div>
                         </label>
                     </div>
                 </div>
             </div>
 
-            {/* Unscheduled Courses Banner / Card */}
+            {/* Unscheduled Courses Banner */}
             {unscheduledCourses.length > 0 ? (
                 <div className="card p-5 bg-gradient-to-r from-amber-50/90 via-amber-50/50 to-white border border-amber-200/80 animate-fade-up">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
@@ -364,47 +595,81 @@ export default function ScheduleView() {
                 </div>
             )}
 
-            {/* Schedule Table */}
+            {/* Master Schedule Table */}
             <div className="card animate-fade-up" style={{ animationDelay: '160ms' }}>
                 <div className="card-header flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
-                        <h2 className="text-lg font-bold text-gray-800">Master Schedule</h2>
+                        <h2 className="text-lg font-bold text-gray-800">Master Timetable Schedule</h2>
                     </div>
-                    <span className="text-xs text-gray-400 font-medium bg-gray-50 px-3 py-1 rounded-lg">{filteredSchedules.length} periods</span>
+                    <span className="text-xs text-gray-500 font-medium bg-gray-50 px-3 py-1 rounded-lg">
+                        {filteredSchedules.length} periods
+                    </span>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="premium-table">
                         <thead>
                             <tr>
-                                <th>Dept/Course</th>
+                                <th>Course</th>
+                                <th>Faculty / Instructor</th>
                                 <th>Batch</th>
                                 <th>Room</th>
-                                <th>Time</th>
+                                <th>Slot & Timing</th>
                                 <th>Allocated By</th>
-                                {isCoordinator && <th></th>}
+                                {isCoordinator && <th className="text-right">Actions</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {filteredSchedules.map((s, index) => (
                                 <tr key={index} className={s.dept_name === 'Empty' ? '!bg-blue-50/40 italic opacity-70' : ''}>
                                     <td className="text-gray-900 font-medium">
-                                        {s.dept_name} — {s.course_name}
-                                    </td>
-                                    <td className="text-gray-600">
-                                        {s.year_of_study ? `Yr ${s.year_of_study} Sec ${s.section}` : '—'}
+                                        <div className="flex flex-col">
+                                            <span className="font-semibold text-slate-800">{s.course_name}</span>
+                                            <span className="text-xs text-slate-400">{s.dept_name}</span>
+                                        </div>
                                     </td>
                                     <td>
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700">
+                                        {s.faculty_name ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0">
+                                                    <GraduationCap className="w-3.5 h-3.5" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-semibold text-slate-800">{s.faculty_name}</div>
+                                                    <div className="text-[10px] text-slate-400">{s.designation || 'Instructor'}</div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-slate-400 italic">Unassigned</span>
+                                        )}
+                                    </td>
+                                    <td className="text-gray-600 text-xs">
+                                        {s.year_of_study ? `Yr ${s.year_of_study} - Sec ${s.section}` : '—'}
+                                    </td>
+                                    <td>
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 font-mono">
                                             {s.room_number}
                                         </span>
                                     </td>
-                                    <td className="text-gray-600">
-                                        Day {s.day_of_week || '?'} ({s.start_time ? s.start_time.substring(0,5) : '--:--'} — {s.end_time ? s.end_time.substring(0,5) : '--:--'})
+                                    <td>
+                                        <div className="flex items-center gap-2">
+                                            {s.slot_name && (
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-bold ${
+                                                    s.slot_type === 'Lab' 
+                                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                }`}>
+                                                    {s.slot_name}
+                                                </span>
+                                            )}
+                                            <span className="text-xs text-gray-600">
+                                                D{s.day_of_week || '?'} ({s.start_time ? s.start_time.substring(0,5) : '--:--'} – {s.end_time ? s.end_time.substring(0,5) : '--:--'})
+                                            </span>
+                                        </div>
                                     </td>
                                     <td className="text-gray-500 text-xs">
                                         {s.created_by_name ? (
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-medium border border-purple-100">
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-medium border border-purple-100 text-[11px]">
                                                 {s.created_by_name}
                                             </span>
                                         ) : (
@@ -414,7 +679,7 @@ export default function ScheduleView() {
                                     {isCoordinator && (
                                         <td className="text-right">
                                             {s.schedule_id && s.dept_name !== 'Empty' && (
-                                                <>
+                                                <div className="flex items-center justify-end gap-1">
                                                     <button 
                                                         onClick={() => {
                                                             setEditTarget(s);
@@ -422,23 +687,24 @@ export default function ScheduleView() {
                                                                 course_id: s.course_id?.toString() || (courses.find(c => c.course_name === s.course_name)?.course_id.toString() || ''),
                                                                 batch_id: s.batch_id?.toString() || (batches.find(b => b.year_of_study === s.year_of_study && b.section === s.section)?.batch_id.toString() || ''),
                                                                 room_number: s.room_number || '',
-                                                                slot_id: s.slot_id?.toString() || (slots.find(slot => slot.day_of_week === s.day_of_week && slot.start_time === s.start_time)?.slot_id.toString() || '')
+                                                                slot_id: s.slot_id?.toString() || (slots.find(slot => slot.day_of_week === s.day_of_week && slot.start_time === s.start_time)?.slot_id.toString() || ''),
+                                                                faculty_id: s.faculty_id ? s.faculty_id.toString() : ''
                                                             });
                                                             setEditError('');
                                                         }}
-                                                        className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors mr-1"
+                                                        className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
                                                         title="Edit Allocation"
                                                     >
                                                         <Pencil className="w-4 h-4" />
                                                     </button>
                                                     <button 
                                                         onClick={() => handleDelete(s.schedule_id)}
-                                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                         title="Delete Schedule"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
-                                                </>
+                                                </div>
                                             )}
                                         </td>
                                     )}
@@ -460,7 +726,7 @@ export default function ScheduleView() {
                                 </div>
                                 <div>
                                     <h3 className="text-base font-bold text-slate-800">Edit Schedule #{editTarget.schedule_id}</h3>
-                                    <p className="text-xs text-slate-500">Reassign course, batch, room, or time slot</p>
+                                    <p className="text-xs text-slate-500">Reassign course, batch, faculty, room, or time slot</p>
                                 </div>
                             </div>
                             <button
@@ -489,7 +755,7 @@ export default function ScheduleView() {
                                         className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                                     >
                                         <option value="">Select Course</option>
-                                        {courses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_name}</option>)}
+                                        {courses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_code} — {c.course_name}</option>)}
                                     </select>
                                 </div>
 
@@ -507,6 +773,22 @@ export default function ScheduleView() {
                                 </div>
 
                                 <div>
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Faculty / Instructor</label>
+                                    <select
+                                        value={editForm.faculty_id}
+                                        onChange={(e) => setEditForm({ ...editForm, faculty_id: e.target.value })}
+                                        className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                                    >
+                                        <option value="">Unassigned</option>
+                                        {facultyList.map(f => (
+                                            <option key={f.faculty_id} value={f.faculty_id}>
+                                                {f.faculty_name} ({f.designation || 'Faculty'})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
                                     <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Room</label>
                                     <select
                                         required
@@ -519,7 +801,7 @@ export default function ScheduleView() {
                                     </select>
                                 </div>
 
-                                <div className="relative">
+                                <div className="relative md:col-span-2">
                                     <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Time Slot</label>
                                     <button 
                                         type="button" 
@@ -528,16 +810,17 @@ export default function ScheduleView() {
                                     >
                                         {editForm.slot_id ? (() => {
                                             const s = slots.find(slot => slot.slot_id.toString() === editForm.slot_id);
-                                            return s ? `Day ${s.day_of_week} (${s.start_time.substring(0,5)} - ${s.end_time.substring(0,5)})` : 'Select Slot';
+                                            return s ? `Day ${s.day_of_week} • Slot ${s.slot_name} (${s.start_time.substring(0,5)} - ${s.end_time.substring(0,5)})` : 'Select Slot';
                                         })() : 'Select Slot'}
                                     </button>
 
                                     {editShowSlotPicker && (
                                         <>
-                                            <div className="fixed inset-0 z-40" onClick={() => setEditShowSlotPicker(false)}></div>
-                                            <div className="absolute z-50 top-full lg:-right-32 mt-2 w-max max-w-[90vw] shadow-2xl rounded-xl animate-fade-up">
+                                            <div className="fixed inset-0 z-40" onClick={() => setEditShowSlotPicker(false)} />
+                                            <div className="absolute z-50 top-full left-0 right-0 mt-2 shadow-2xl rounded-2xl animate-fade-up">
                                                 <TimeSlotGrid 
                                                     mode="select" 
+                                                    selectionMode="single"
                                                     slots={slots} 
                                                     bookedSlotIds={getBookedSlotIdsForRoom(editForm.room_number, editTarget.schedule_id)} 
                                                     selectedSlotId={editForm.slot_id}
@@ -553,7 +836,7 @@ export default function ScheduleView() {
                             </div>
 
                             <p className="text-[11px] text-gray-400 pt-1">
-                                Note: Database triggers validate that room capacity meets batch size and prevents time slot double-booking.
+                                Note: Database triggers validate room capacity, shift constraints (8–4 vs 9–5), course type compatibility (T/P/J), and faculty invariance.
                             </p>
 
                             <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
@@ -579,5 +862,3 @@ export default function ScheduleView() {
         </div>
     );
 }
-
-

@@ -143,7 +143,7 @@ async function runTests() {
       method: 'POST',
       headers: authHeaders
     }, { course_id: 999, course_code: 'X', course_name: 'Test Course', dept_id: 1 });
-    assert(badCourseCode.status === 400 && badCourseCode.data?.error?.includes('Course code must be between 2 and 20 characters'), 'validateCourse rejects short course_code', badCourseCode);
+    assert(badCourseCode.status === 400 && badCourseCode.data?.error?.includes('Course code must be'), 'validateCourse rejects invalid course_code', badCourseCode);
 
     // 7. Schedule input validation
     // 7a. Out of range slot_id rejected

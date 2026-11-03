@@ -4,6 +4,7 @@ import { AlertTriangle, Trash2, X, Loader2, Info } from 'lucide-react';
 export interface ImpactData {
   courses_count?: number;
   batches_count?: number;
+  faculty_count?: number;
   schedules_count?: number;
 }
 
@@ -13,7 +14,7 @@ interface CascadeDeleteModalProps {
   onConfirm: () => Promise<void>;
   title: string;
   itemName: string;
-  itemType: 'department' | 'course' | 'room' | 'batch';
+  itemType: 'department' | 'course' | 'room' | 'batch' | 'faculty';
   fetchImpact: () => Promise<ImpactData>;
 }
 
@@ -65,6 +66,7 @@ export const CascadeDeleteModal: React.FC<CascadeDeleteModalProps> = ({
     impact &&
     ((impact.courses_count && impact.courses_count > 0) ||
       (impact.batches_count && impact.batches_count > 0) ||
+      (impact.faculty_count && impact.faculty_count > 0) ||
       (impact.schedules_count && impact.schedules_count > 0));
 
   return (
@@ -132,6 +134,12 @@ export const CascadeDeleteModal: React.FC<CascadeDeleteModalProps> = ({
                       <div className="bg-slate-900/80 border border-slate-700/60 p-2.5 rounded-lg text-center">
                         <div className="text-lg font-bold text-red-400">{impact.batches_count}</div>
                         <div className="text-[11px] text-slate-400">Batches</div>
+                      </div>
+                    )}
+                    {impact.faculty_count !== undefined && (
+                      <div className="bg-slate-900/80 border border-slate-700/60 p-2.5 rounded-lg text-center">
+                        <div className="text-lg font-bold text-red-400">{impact.faculty_count}</div>
+                        <div className="text-[11px] text-slate-400">Faculty</div>
                       </div>
                     )}
                     {impact.schedules_count !== undefined && (
