@@ -180,7 +180,8 @@ export default function TimeSlotGrid({
 
                                     const handleClick = () => {
                                         if (mode === 'view' || isBooked) return;
-                                        if (selectionMode === 'clubbed' && onSelectSlotGroup) {
+                                        // If it's a Theory slot (A-G) and onSelectSlotGroup exists, always select the whole clubbed group
+                                        if (slot.slot_type === 'Theory' && onSelectSlotGroup) {
                                             const groupSlots = slots.filter(s => s.slot_name === slot.slot_name);
                                             onSelectSlotGroup(slot.slot_name, groupSlots);
                                         } else if (onSelectSlot) {
@@ -220,8 +221,8 @@ export default function TimeSlotGrid({
                                                     <div className="text-red-400 font-semibold mt-0.5">Occupied / Booked</div>
                                                 ) : (
                                                     <div className="text-emerald-400 font-medium mt-0.5">
-                                                        {selectionMode === 'clubbed'
-                                                            ? `Click to select all '${slot.slot_name}' slots`
+                                                        {slot.slot_type === 'Theory'
+                                                            ? `Click to select ALL '${slot.slot_name}' slots in week (${slots.filter(s => s.slot_name === slot.slot_name).length} periods)`
                                                             : 'Click to select slot'}
                                                     </div>
                                                 )}

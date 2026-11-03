@@ -167,8 +167,9 @@ export default function ScheduleView() {
         setSuccessMsg('');
 
         try {
-            if (allocationMode === 'clubbed') {
-                if (!form.slot_name) {
+            if (form.slot_name || allocationMode === 'clubbed') {
+                const groupName = form.slot_name || (slots.find(s => s.slot_id.toString() === form.slot_id)?.slot_name);
+                if (!groupName) {
                     setErrorMsg('Please select a Theory Slot Group (A–G)');
                     return;
                 }
@@ -176,10 +177,11 @@ export default function ScheduleView() {
                     course_id: form.course_id,
                     batch_id: form.batch_id,
                     room_number: form.room_number,
-                    slot_name: form.slot_name,
+                    slot_name: groupName,
                     faculty_id: form.faculty_id ? parseInt(form.faculty_id, 10) : null
                 });
-                setSuccessMsg(`Clubbed slot group '${form.slot_name}' scheduled successfully (${res.scheduled_count} periods)!`);
+                const scheduledCount = res.total_slots_scheduled || res.scheduled_count || 4;
+                setSuccessMsg(`All ${scheduledCount} periods of Slot Group '${groupName}' scheduled successfully across the week!`);
             } else {
                 if (!form.slot_id) {
                     setErrorMsg('Please select a time slot from the grid');
@@ -399,25 +401,27 @@ export default function ScheduleView() {
                             {/* Slot Picker Dropdown */}
                             <div className="relative">
                                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">
-                                    {allocationMode === 'clubbed' ? 'Theory Group' : 'Time Slot'}
+                                    Time Slot / Group
                                 </label>
                                 <button 
                                     type="button" 
                                     onClick={() => setShowSlotPicker(!showSlotPicker)}
                                     className="w-full text-left border border-gray-200 bg-white rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 truncate font-medium"
                                 >
-                                    {allocationMode === 'clubbed' ? (
-                                        form.slot_name ? (
-                                            <span className="text-amber-700 font-bold">Group {form.slot_name} (All periods)</span>
-                                        ) : (
-                                            <span className="text-gray-400">Pick Group (A–G)</span>
-                                        )
-                                    ) : (
-                                        form.slot_id ? (() => {
-                                            const s = slots.find(slot => slot.slot_id.toString() === form.slot_id);
-                                            return s ? `D${s.day_of_week} ${s.slot_name} (${s.start_time.substring(0,5)})` : 'Select Slot';
-                                        })() : <span className="text-gray-400">Select Slot</span>
-                                    )}
+                                    {form.slot_name ? (() => {
+                                        const groupPeriods = slots.filter(s => s.slot_name === form.slot_name);
+                                        return (
+                                            <span className="flex items-center gap-1.5 text-amber-700 font-bold truncate">
+                                                <span className="px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-xs font-mono">
+                                                    Slot {form.slot_name}
+                                                </span>
+                                                <span>All {groupPeriods.length} periods in week</span>
+                                            </span>
+                                        );
+                                    })() : form.slot_id ? (() => {
+                                        const s = slots.find(slot => slot.slot_id.toString() === form.slot_id);
+                                        return s ? `D${s.day_of_week} • Slot ${s.slot_name} (${s.start_time.substring(0,5)})` : 'Select Slot';
+                                    })() : <span className="text-gray-400">Select Time Slot / Group</span>}
                                 </button>
 
                                 {showSlotPicker && (
@@ -431,12 +435,21 @@ export default function ScheduleView() {
                                                 bookedSlotIds={getBookedSlotIdsForRoom(form.room_number)} 
                                                 selectedSlotId={form.slot_id}
                                                 selectedSlotName={form.slot_name}
-                                                onSelectSlot={(slotId) => {
-                                                    setForm({...form, slot_id: slotId});
+                                                onSelectSlot={(slotId, slot) => {
+                                                    if (slot && slot.slot_type === 'Theory') {
+                                                        // Theory slots (A-G) are recurring slot groups across the week
+                                                        setForm(prev => ({ ...prev, slot_name: slot.slot_name, slot_id: '' }));
+                                                        setAllocationMode('clubbed');
+                                                    } else {
+                                                        // Lab slots (P1-P50)
+                                                        setForm(prev => ({ ...prev, slot_id: slotId, slot_name: '' }));
+                                                        setAllocationMode('single');
+                                                    }
                                                     setShowSlotPicker(false);
                                                 }}
                                                 onSelectSlotGroup={(slotName) => {
-                                                    setForm({...form, slot_name: slotName});
+                                                    setForm(prev => ({ ...prev, slot_name: slotName, slot_id: '' }));
+                                                    setAllocationMode('clubbed');
                                                     setShowSlotPicker(false);
                                                 }}
                                             />
@@ -445,6 +458,30 @@ export default function ScheduleView() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Linked Slot Group Preview Banner */}
+                        {form.slot_name && (
+                            <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2 animate-fade-in">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-6 h-6 rounded-lg bg-amber-200 text-amber-900 font-black flex items-center justify-center font-mono">
+                                        {form.slot_name}
+                                    </span>
+                                    <span className="font-semibold text-amber-900">
+                                        Linked Theory Slot Group {form.slot_name}
+                                    </span>
+                                    <span className="text-amber-700 hidden sm:inline">
+                                        — Allocating this slot will schedule all {slots.filter(s => s.slot_name === form.slot_name).length} periods across the week:
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    {slots.filter(s => s.slot_name === form.slot_name).map(s => (
+                                        <span key={s.slot_id} className="px-2 py-0.5 rounded-md bg-white border border-amber-200 text-[11px] font-mono text-amber-800 font-semibold shadow-xs">
+                                            Day {s.day_of_week} Period {s.hour_order} ({s.start_time.substring(0,5)})
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Helper tip for whole semester invariance */}
                         {existingFacultyForCourseBatch && (
@@ -462,7 +499,9 @@ export default function ScheduleView() {
                                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg transition-all"
                             >
                                 <Plus className="w-4 h-4" />
-                                {allocationMode === 'clubbed' ? 'Book Entire Slot Group' : 'Create Allocation'}
+                                {form.slot_name 
+                                    ? `Allocate All ${slots.filter(s => s.slot_name === form.slot_name).length} Periods for Slot ${form.slot_name}` 
+                                    : 'Create Allocation'}
                             </button>
                         </div>
                     </form>
