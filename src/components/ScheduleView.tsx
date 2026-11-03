@@ -9,7 +9,7 @@ import {
     Filter, Search, Plus, Calendar, Trash2, Eye, Pencil,
     AlertCircle, BookOpen, CheckCircle2, GraduationCap, Layers, UserCheck
 } from 'lucide-react';
-import TimeSlotGrid from './TimeSlotGrid';
+import TimeSlotGrid, { SlotConflictInfo } from './TimeSlotGrid';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -123,6 +123,68 @@ export default function ScheduleView() {
         }).filter(Boolean) as string[];
 
         return bookedIds;
+    };
+
+    const computeSlotConflicts = (
+        roomNumber: string,
+        batchId: string,
+        facultyId: string,
+        excludeScheduleId?: string
+    ): Record<string, SlotConflictInfo> => {
+        const result: Record<string, SlotConflictInfo> = {};
+        
+        slots.forEach(slot => {
+            const slotIdStr = slot.slot_id.toString();
+            const details: string[] = [];
+            let isRoomConflict = false;
+            let isBatchConflict = false;
+            let isFacultyConflict = false;
+
+            const schedulesInSlot = schedules.filter(s => {
+                if (excludeScheduleId && s.schedule_id?.toString() === excludeScheduleId.toString()) {
+                    return false;
+                }
+                return (
+                    s.slot_id?.toString() === slotIdStr ||
+                    (s.day_of_week === slot.day_of_week && s.start_time === slot.start_time)
+                );
+            });
+
+            if (roomNumber) {
+                const roomSched = schedulesInSlot.find(s => s.room_number === roomNumber);
+                if (roomSched) {
+                    isRoomConflict = true;
+                    details.push(`Room ${roomNumber} unavailable: ${roomSched.course_code || roomSched.course_name} (${roomSched.year_of_study ? `Batch ${roomSched.year_of_study}-${roomSched.section}` : `Batch #${roomSched.batch_id}`})`);
+                }
+            }
+
+            if (batchId) {
+                const batchSched = schedulesInSlot.find(s => s.batch_id?.toString() === batchId.toString());
+                if (batchSched) {
+                    isBatchConflict = true;
+                    details.push(`Batch already has class: ${batchSched.course_code || batchSched.course_name} in Room ${batchSched.room_number}`);
+                }
+            }
+
+            if (facultyId) {
+                const facSched = schedulesInSlot.find(s => s.faculty_id?.toString() === facultyId.toString());
+                if (facSched) {
+                    isFacultyConflict = true;
+                    details.push(`Faculty busy: Teaching ${facSched.course_code || facSched.course_name} in Room ${facSched.room_number}`);
+                }
+            }
+
+            const isOccupied = isRoomConflict || isBatchConflict || isFacultyConflict;
+            result[slotIdStr] = {
+                isOccupied,
+                isRoomConflict,
+                isBatchConflict,
+                isFacultyConflict,
+                details
+            };
+        });
+
+        return result;
     };
 
     // Find if a teacher is already locked in for this (course_id, batch_id)
@@ -425,6 +487,7 @@ export default function ScheduleView() {
                                                     mode="select" 
                                                     selectionMode={allocationMode}
                                                     slots={slots} 
+                                                    slotConflicts={computeSlotConflicts(form.room_number, form.batch_id, form.faculty_id)}
                                                     bookedSlotIds={getBookedSlotIdsForRoom(form.room_number)} 
                                                     selectedSlotId={form.slot_id}
                                                     selectedSlotName={form.slot_name}
@@ -861,6 +924,7 @@ export default function ScheduleView() {
                                                 mode="select" 
                                                 selectionMode="single"
                                                 slots={slots} 
+                                                slotConflicts={computeSlotConflicts(editForm.room_number, editForm.batch_id, editForm.faculty_id, editTarget?.schedule_id)}
                                                 bookedSlotIds={getBookedSlotIdsForRoom(editForm.room_number, editTarget?.schedule_id)} 
                                                 selectedSlotId={editForm.slot_id}
                                                 onSelectSlot={(slotId) => {
