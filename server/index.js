@@ -3,7 +3,16 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import db from './db.js';
+import {
+  validateRoom,
+  validateBatch,
+  validateDepartment,
+  validateCourse,
+  validateSchedule,
+  validateUserProvision
+} from './validation.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -15,8 +24,47 @@ const app = express();
 const port = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'clus_jwt_dev_secret_key_2026';
 
-app.use(cors());
+// Restricted CORS Configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:5174', 'http://127.0.0.1:5174'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests with no origin (e.g. server-to-server, tests, mobile)
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS violation: origin ${origin} is not allowed.`));
+  },
+  credentials: true
+}));
+
 app.use(express.json());
+
+// Auth Rate Limiter (Max 10 login attempts per 15 minutes per IP)
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts from this IP. Please try again after 15 minutes.' }
+});
+
+// Health Check Endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      uptime: process.uptime()
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'unhealthy', error: err.message });
+  }
+});
 
 // ==========================================
 // Authentication & Authorization Middleware
@@ -105,7 +153,7 @@ app.get('/api/departments', authenticateToken, async (req, res) => {
 });
 
 // Add Department (Coordinator only)
-app.post('/api/departments', authenticateToken, requireCoordinator, async (req, res) => {
+app.post('/api/departments', authenticateToken, requireCoordinator, validateDepartment, async (req, res) => {
   const { dept_id, dept_name } = req.body;
   if (!dept_id || !dept_name) {
     return res.status(400).json({ error: 'Department ID and Department Name are required.' });
@@ -174,7 +222,7 @@ app.get('/api/courses', authenticateToken, async (req, res) => {
 });
 
 // Add Course (Coordinator only)
-app.post('/api/courses', authenticateToken, requireCoordinator, async (req, res) => {
+app.post('/api/courses', authenticateToken, requireCoordinator, validateCourse, async (req, res) => {
   const { course_id, course_code, course_name, dept_id } = req.body;
   if (!course_id || !course_code || !course_name || !dept_id) {
     return res.status(400).json({ error: 'All fields (ID, code, name, department) are required.' });
@@ -273,7 +321,7 @@ app.get('/api/timeslots', authenticateToken, async (req, res) => {
 });
 
 // Allocate a Room (Coordinator only - logs created_by)
-app.post('/api/schedules', authenticateToken, requireCoordinator, async (req, res) => {
+app.post('/api/schedules', authenticateToken, requireCoordinator, validateSchedule, async (req, res) => {
   const { course_id, batch_id, room_number, slot_id } = req.body;
   const created_by = req.user ? req.user.id : null;
   try {
@@ -288,7 +336,7 @@ app.post('/api/schedules', authenticateToken, requireCoordinator, async (req, re
 });
 
 // Update a Schedule in place (Coordinator only)
-app.put('/api/schedules/:schedule_id', authenticateToken, requireCoordinator, async (req, res) => {
+app.put('/api/schedules/:schedule_id', authenticateToken, requireCoordinator, validateSchedule, async (req, res) => {
   const { schedule_id } = req.params;
   const { course_id, batch_id, room_number, slot_id } = req.body;
   if (!course_id || !batch_id || !room_number || !slot_id) {
@@ -320,21 +368,24 @@ app.delete('/api/schedules/:id', authenticateToken, requireCoordinator, async (r
 });
 
 // Add a Room (Coordinator only)
-app.post('/api/rooms', authenticateToken, requireCoordinator, async (req, res) => {
+app.post('/api/rooms', authenticateToken, requireCoordinator, validateRoom, async (req, res) => {
   const { room_number, room_type, capacity } = req.body;
   try {
     const [result] = await db.query(
       'INSERT INTO Room (room_number, room_type, capacity) VALUES (?, ?, ?)',
-      [room_number, room_type, capacity]
+      [room_number.trim().toUpperCase(), room_type, Number(capacity)]
     );
     res.status(201).json({ success: true });
   } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: `Room ${room_number} already exists.` });
+    }
     res.status(400).json({ error: err.sqlMessage || err.message });
   }
 });
 
 // Update a Room in place (Coordinator only)
-app.put('/api/rooms/:room_number', authenticateToken, requireCoordinator, async (req, res) => {
+app.put('/api/rooms/:room_number', authenticateToken, requireCoordinator, validateRoom, async (req, res) => {
   const { room_number } = req.params;
   const { room_type, capacity } = req.body;
   if (!room_type || !capacity || Number(capacity) <= 0) {
@@ -366,11 +417,8 @@ app.delete('/api/rooms/:room_number', authenticateToken, requireCoordinator, asy
 });
 
 // Add a Batch (Coordinator only)
-app.post('/api/batches', authenticateToken, requireCoordinator, async (req, res) => {
+app.post('/api/batches', authenticateToken, requireCoordinator, validateBatch, async (req, res) => {
   const { batch_id, year_of_study, section, student_count, dept_id } = req.body;
-  if (!batch_id || !year_of_study || !section || !student_count || !dept_id) {
-    return res.status(400).json({ error: 'All fields (Batch ID, Year of Study, Section, Student Count, Department) are required.' });
-  }
   try {
     const [deptRows] = await db.query('SELECT dept_id, dept_name FROM Department WHERE dept_id = ?', [dept_id]);
     if (deptRows.length === 0) {
@@ -390,7 +438,7 @@ app.post('/api/batches', authenticateToken, requireCoordinator, async (req, res)
 });
 
 // Update a Batch in place (Coordinator only)
-app.put('/api/batches/:batch_id', authenticateToken, requireCoordinator, async (req, res) => {
+app.put('/api/batches/:batch_id', authenticateToken, requireCoordinator, validateBatch, async (req, res) => {
   const { batch_id } = req.params;
   const { year_of_study, section, student_count, dept_id } = req.body;
   if (!year_of_study || !section || !student_count || !dept_id) {
@@ -694,8 +742,8 @@ app.get('/api/reports/cursor-evaluation', authenticateToken, async (req, res) =>
 // Authentication & Staff User Management
 // ==========================================
 
-// Sign In (Public)
-app.post('/api/auth/signin', async (req, res) => {
+// Sign In (Public - Rate Limited)
+app.post('/api/auth/signin', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
@@ -737,7 +785,7 @@ app.get('/api/users', authenticateToken, requireCoordinator, async (req, res) =>
 });
 
 // Provision User (Coordinator only)
-app.post('/api/users', authenticateToken, requireCoordinator, async (req, res) => {
+app.post('/api/users', authenticateToken, requireCoordinator, validateUserProvision, async (req, res) => {
   const { name, email, password, role } = req.body;
   if (!name || !email || !password || !role) {
     return res.status(400).json({ error: 'Name, email, password, and role are required.' });

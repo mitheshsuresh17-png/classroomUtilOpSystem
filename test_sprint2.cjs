@@ -80,11 +80,10 @@ async function runTests() {
     assert(roomError && roomError.includes('Capacity Error'), `Room capacity reduction below active schedule rejected (${roomError})`);
 
     // Test 1.2: Batch Size Update Trigger (trg_check_batch_size_update)
-    // In seed: Batch 201 has 60 students, in UB101 (cap 65).
-    // Increasing Batch 201 to 70 students should FAIL.
+    const [[ub101]] = await pool.query('SELECT capacity FROM Room WHERE room_number = "UB101"');
     let batchError = null;
     try {
-      await pool.query('UPDATE Batch SET student_count = 70 WHERE batch_id = 201');
+      await pool.query('UPDATE Batch SET student_count = ? WHERE batch_id = 201', [(ub101 ? ub101.capacity : 65) + 10]);
     } catch (err) {
       batchError = err.message;
     }
